@@ -10,7 +10,18 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div class="app-shell">
+<div id="loginScreen" class="login-screen">
+  <form id="loginForm" class="login-card">
+    <div class="login-brand"><span class="login-logo">S</span><div><strong>PT SINO</strong><small>Digital Document Archive</small></div></div>
+    <h1>Selamat Datang</h1><p>Masuk untuk mengakses sistem arsip dokumen perusahaan.</p>
+    <label class="login-label">Username<input id="loginUsername" name="username" autocomplete="username" required placeholder="Masukkan username"></label>
+    <label class="login-label">Password<input id="loginPassword" name="password" type="password" autocomplete="current-password" required placeholder="Masukkan password"></label>
+    <div id="loginMessage" class="login-message" role="alert"></div>
+    <button id="loginButton" class="btn btn-primary login-submit" type="submit">Masuk ke Sistem</button>
+    <small class="login-foot">Akses terbatas untuk pengguna terdaftar · PT SINO</small>
+  </form>
+</div>
+<div class="app-shell" id="appShell" hidden>
   <aside class="sidebar" id="sidebar">
     <div class="brand">
       <div class="brand-mark"><svg viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H11l2 2h4.5A2.5 2.5 0 0 1 20 7.5v10a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 17.5z"/><path d="M8 10h8M8 14h5"/></svg></div>
@@ -44,7 +55,7 @@
           <span class="cloud-icon">☁</span>
           <span><small>Total Penyimpanan</small><strong id="storageText">Menghitung...</strong><i class="storage-track"><i id="storageBar"></i></i></span>
         </a>
-        <div class="profile"><span class="avatar">A</span><span><b>Administrator</b><small>Super Admin</small></span></div>
+        <div class="profile"><span class="avatar" id="profileAvatar">U</span><span><b id="profileName">Pengguna</b><small id="profileRole">User</small></span><button type="button" class="btn btn-outline btn-small" id="logoutButton">Keluar</button></div>
       </div>
     </header>
 
@@ -219,6 +230,17 @@
     <section id="tab-pengaturan" class="tab-content" hidden>
       <div class="section-intro"><h2>Pengaturan Sistem</h2><p>Akses cepat ke database dan penyimpanan dokumen.</p></div>
       <section class="panel settings-panel"><div class="setting-row"><div><b>Google Spreadsheet</b><small>Database vendor, transaksi, dan arsip dokumen.</small></div><a class="btn btn-outline" id="sheetLink" href="#" target="_blank" rel="noopener">Buka Spreadsheet ↗</a></div><div class="setting-row"><div><b>Google Drive</b><small>Folder utama penyimpanan dokumen perusahaan.</small></div><a class="btn btn-outline" id="driveLinkSettings" href="#" target="_blank" rel="noopener">Buka Folder Drive ↗</a></div><div class="setting-row"><div><b>Informasi Sistem</b><small>Frontend GitHub Pages terhubung ke Google Apps Script.</small></div><span class="connection-status" id="connectionStatus">Terhubung</span></div></section>
+      <section class="panel user-admin-panel" id="userAdminPanel" hidden>
+        <div class="table-heading"><div><h2>Manajemen Akun</h2><small>Buat akun dan atur akses pengguna sistem.</small></div></div>
+        <form id="createUserForm" class="form-grid user-create-grid">
+          <label class="field-label">Username<input id="newUsername" required minlength="3" maxlength="30" autocomplete="off" placeholder="contoh: stafarsip"></label>
+          <label class="field-label">Nama Pengguna<input id="newDisplayName" required placeholder="Nama lengkap"></label>
+          <label class="field-label">Password awal<input id="newUserPassword" type="password" required minlength="12" autocomplete="new-password" placeholder="Minimal 12 karakter"></label>
+          <label class="field-label">Hak Akses<select id="newUserRole"><option value="user">User</option><option value="admin">Administrator</option></select></label>
+          <div class="form-submit span-2"><span id="userAdminMessage" class="form-message"></span><button class="btn btn-primary" id="createUserButton" type="submit">＋ Buat Akun</button></div>
+        </form>
+        <div class="table-wrap"><table class="documents-table"><thead><tr><th>Username</th><th>Nama</th><th>Role</th><th>Status</th><th>Login Terakhir</th><th>Aksi</th></tr></thead><tbody id="userRows"></tbody></table></div>
+      </section>
     </section>
 
     <footer class="app-footer">Arsip Dokumen Digital · PT SINO <span>Terintegrasi dengan Google Sheets & Google Drive</span></footer>
