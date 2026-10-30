@@ -1,120 +1,301 @@
 <!DOCTYPE html>
-<html>
+<html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ERP Arsip Dokumen</title>
+    <!-- Import Font Google -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="app-container">
+        <!-- SIDEBAR -->
         <aside class="sidebar">
-            <div class="brand"><div class="brand-logo">PT SINO</div><div class="brand-sub">Arsip Dokumen</div></div>
+            <div class="brand">
+                <div class="brand-logo">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                    PT AGE
+                </div>
+                <div class="brand-sub">Enterprise ERP</div>
+            </div>
             <nav class="menu">
-                <a href="#" class="menu-item active" onclick="switchTab('arsip', this); return false;">📁 Arsip Dokumen</a>
-                <a href="#" class="menu-item" onclick="switchTab('vendor', this); return false;">🏢 Master Vendor</a>
-                <a href="#" class="menu-item" onclick="switchTab('transaksi', this); return false;">📝 Tambah Transaksi</a>
-                <a href="#" class="menu-item" onclick="switchTab('laporan', this); return false;">📈 Rekap Laporan</a>
+                <a href="#" class="menu-item" onclick="switchTab('dashboard', this); return false;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg> Dashboard
+                </a>
+                <a href="#" class="menu-item" onclick="switchTab('vendor', this); return false;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg> Master Vendor
+                </a>
+                <a href="#" class="menu-item" onclick="switchTab('transaksi', this); return false;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg> Transaksi
+                </a>
+                <a href="#" class="menu-item active" onclick="switchTab('arsip', this); return false;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg> Arsip Dokumen
+                </a>
+                <a href="#" class="menu-item" onclick="switchTab('laporan', this); return false;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> Rekap Laporan
+                </a>
             </nav>
         </aside>
 
+        <!-- MAIN CONTENT -->
         <main class="main-content">
+            <!-- TOPBAR -->
             <header class="topbar">
-                <div class="page-title" id="pageTitle">Arsip Dokumen Digital</div>
-                <div class="header-actions">
-                    <a id="sheetLink" class="button secondary" href="#" target="_blank">Google Sheet</a>
-                    <a id="driveLink" class="button secondary" href="#" target="_blank">Google Drive</a>
+                <div class="topbar-title">
+                    <h2>Arsip Dokumen Digital</h2>
+                    <p>Kelola dan simpan seluruh dokumen perusahaan dalam satu sistem</p>
                 </div>
-            </header>
-            
-            <div id="loadingIndicator" style="padding:20px; color:blue; font-weight:bold;">Memuat data dari server... (Pastikan URL API & PIN benar)</div>
-
-            <!-- KONTEN: ARSIP -->
-            <div id="tab-arsip" class="tab-content" style="display: none;">
-                <div class="stats-grid">
-                    <div class="stat-card"><h4>Total Dokumen</h4><h2 id="statTotalDok">0</h2></div>
-                    <div class="stat-card"><h4>Legalitas</h4><h2 id="statLegal">0</h2></div>
-                    <div class="stat-card"><h4>Transaksi</h4><h2 id="statTrx">0</h2></div>
-                    <div class="stat-card"><h4>Keuangan</h4><h2 id="statKeu">0</h2></div>
-                </div>
-                <div class="panel">
-                    <div class="panel-header"><h3>Upload Dokumen Baru</h3></div>
-                    <form id="uploadFormLepas">
-                        <div class="form-grid" style="grid-template-columns: 1fr 2fr 2fr;">
-                            <label>Kategori<select id="docKategori"><option>LEGALITAS PERUSAHAAN</option><option>KEUANGAN</option><option>OPERASIONAL</option></select></label>
-                            <label>Nama Dokumen <input id="docNama" required></label>
-                            <label>File (Bisa banyak) <input id="docFileLepas" type="file" accept=".pdf,.jpg,.jpeg,.png" multiple required></label>
+                <div class="topbar-right">
+                    <div class="storage-info">
+                        <div class="storage-icon">☁️</div>
+                        <div>
+                            <div class="storage-text">Total Penyimpanan</div>
+                            <div class="storage-val"><strong>2.4 GB</strong> / 100 GB <span style="font-size:10px; color:#64748b;">(2.4%)</span></div>
                         </div>
-                        <button id="btnUploadLepas" class="button primary" type="submit" style="margin-top:15px;">Upload ke Arsip</button>
-                        <div id="msgLepas" style="margin-top:10px; font-size:13px;"></div>
-                    </form>
-                </div>
-                <div class="panel">
-                    <div class="panel-header"><h3>Daftar Arsip</h3><input id="searchArsip" type="text" placeholder="🔍 Cari dokumen..." style="width:300px;"></div>
-                    <div style="overflow-x:auto;">
-                        <table class="table-arsip">
-                            <thead><tr><th>No</th><th>Tanggal</th><th>Kategori</th><th>Nama</th><th>Vendor</th><th>Aksi</th></tr></thead>
-                            <tbody id="arsipRows"></tbody>
-                        </table>
+                    </div>
+                    <div class="user-profile">
+                        <div class="avatar">M</div>
+                        <div class="user-info"><strong>Mars</strong><br><span>Super Admin</span></div>
                     </div>
                 </div>
+            </header>
+
+            <div id="loadingIndicator" style="padding:20px; text-align:center; color:#2563eb; font-weight:bold; font-size: 16px;">Memuat data dari server...</div>
+
+            <!-- KONTEN: ARSIP DOKUMEN (TAMPILAN UTAMA) -->
+            <div id="tab-arsip" class="tab-content" style="display: none;">
+                
+                <!-- STATISTIK ATAS -->
+                <div class="stats-grid">
+                    <div class="stat-card"><div class="stat-icon blue">📁</div><div class="stat-info"><span>Total Dokumen</span><h3 id="statTotalDok">0</h3></div></div>
+                    <div class="stat-card"><div class="stat-icon green">📄</div><div class="stat-info"><span>Dokumen Legalitas</span><h3 id="statLegal">0</h3></div></div>
+                    <div class="stat-card"><div class="stat-icon purple">🏢</div><div class="stat-info"><span>Dokumen Vendor</span><h3 id="statVendor">0</h3></div></div>
+                    <div class="stat-card"><div class="stat-icon orange">🧾</div><div class="stat-info"><span>Dokumen Transaksi</span><h3 id="statTrx">0</h3></div></div>
+                    <div class="stat-card"><div class="stat-icon teal">💰</div><div class="stat-info"><span>Dokumen Keuangan</span><h3 id="statKeu">0</h3></div></div>
+                    <div class="stat-card"><div class="stat-icon red">⚙️</div><div class="stat-info"><span>Dokumen Operasional</span><h3 id="statOps">0</h3></div></div>
+                </div>
+
+                <!-- NOTIFIKASI IZIN -->
+                <div class="notif-banner">
+                    <div class="notif-left">
+                        <div class="notif-icon">⚠️</div>
+                        <div><strong>Informasi Izin Migas Vendor</strong><br><span style="font-size:12px; color:#64748b;">3 vendor akan segera kedaluwarsa dalam 30 hari ke depan</span></div>
+                    </div>
+                    <div class="notif-right">
+                        <a href="#" class="btn-text">Lihat Semua &rarr;</a>
+                        <div class="notif-badges">
+                            <span class="badge green">Aktif 12</span>
+                            <span class="badge yellow">Segera Kedaluwarsa 3</span>
+                            <span class="badge red">Kedaluwarsa 1</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- AREA KONTEN 3 KOLOM -->
+                <div class="content-3-col">
+                    
+                    <!-- KIRI: KATEGORI & FILTER -->
+                    <div class="col-left">
+                        <div class="panel">
+                            <h4 class="panel-title">Kategori Dokumen</h4>
+                            <ul class="tree-menu">
+                                <li class="tree-item active"><span>📁 Semua Dokumen</span> <span class="count" id="countAll">0</span></li>
+                                <li class="tree-item"><span>📂 Legalitas Perusahaan</span> <span class="count" id="countLegal">0</span></li>
+                                <li class="tree-item"><span>📂 Vendor</span> <span class="count" id="countVendor">0</span></li>
+                                <li class="tree-item expanded"><span>📂 Transaksi BBM</span> <span class="count" id="countTrx">0</span>
+                                    <ul class="sub-tree">
+                                        <li class="sub-item">PO & Kontrak</li>
+                                        <li class="sub-item">Invoice</li>
+                                        <li class="sub-item">Surat Jalan & BAST</li>
+                                        <li class="sub-item">Bukti Pembayaran</li>
+                                        <li class="sub-item">Dokumen Pendukung</li>
+                                    </ul>
+                                </li>
+                                <li class="tree-item"><span>📂 Keuangan</span> <span class="count" id="countKeu">0</span></li>
+                                <li class="tree-item"><span>📂 Operasional</span> <span class="count" id="countOps">0</span></li>
+                            </ul>
+                        </div>
+                        
+                        <div class="panel">
+                            <h4 class="panel-title">Filter</h4>
+                            <div class="filter-group">
+                                <label>Vendor</label>
+                                <select id="filterVendor"><option>Semua Vendor</option></select>
+                            </div>
+                            <div class="filter-group">
+                                <label>Tahun</label>
+                                <select id="filterTahun"><option>Semua Tahun</option></select>
+                            </div>
+                            <div class="filter-group">
+                                <label>Bulan</label>
+                                <select id="filterBulan"><option>Semua Bulan</option><option>Januari</option><option>Februari</option><option>Maret</option><option>April</option><option>Mei</option><option>Juni</option><option>Juli</option><option>Agustus</option><option>September</option><option>Oktober</option><option>November</option><option>Desember</option></select>
+                            </div>
+                            <div class="filter-group">
+                                <label>Status Dokumen</label>
+                                <select id="filterStatus"><option>Semua Status</option><option>Lengkap</option><option>Kurang</option></select>
+                            </div>
+                            <button class="btn btn-outline w-100 mt-10">Reset</button>
+                            <button class="btn btn-primary w-100 mt-5">Terapkan Filter</button>
+                        </div>
+                    </div>
+
+                    <!-- TENGAH: DAFTAR DOKUMEN -->
+                    <div class="col-center">
+                        <div class="panel">
+                            <div class="panel-header-actions">
+                                <div class="search-box">
+                                    <span>🔍</span>
+                                    <input id="searchArsip" type="text" placeholder="Cari nama vendor, nomor invoice, nomor PO, nama dokumen...">
+                                </div>
+                                <button class="btn btn-primary" onclick="switchTab('transaksi', document.querySelector('.menu-item:nth-child(3)'))">+ Upload Dokumen</button>
+                            </div>
+                            
+                            <div class="table-header">
+                                <span>Daftar Dokumen</span>
+                                <span style="font-size:12px; color:#64748b;">Menampilkan <span id="showingCount">0</span> dokumen <button class="btn btn-outline" style="margin-left:10px; padding:4px 8px; font-size:11px;">📥 Export Excel</button></span>
+                            </div>
+
+                            <table class="table-modern">
+                                <thead>
+                                    <tr>
+                                        <th><input type="checkbox"></th>
+                                        <th>No.</th>
+                                        <th>Nama Dokumen</th>
+                                        <th>Kategori</th>
+                                        <th>Vendor</th>
+                                        <th>Tanggal Upload</th>
+                                        <th>Status</th>
+                                        <th>Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="arsipRows">
+                                    <!-- Data diisi oleh JS -->
+                                </tbody>
+                            </table>
+                            
+                            <div class="pagination">
+                                <button>&lt;</button>
+                                <button class="active">1</button>
+                                <button>2</button>
+                                <button>3</button>
+                                <span>...</span>
+                                <button>17</button>
+                                <button>&gt;</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- KANAN: PREVIEW DOKUMEN -->
+                    <div class="col-right">
+                        <div class="panel preview-panel">
+                            <div class="panel-header-actions" style="border-bottom:none; padding-bottom:0;">
+                                <h4 class="panel-title" style="margin:0;">Preview Dokumen</h4>
+                                <button style="background:none; border:none; cursor:pointer; font-size:16px;">✕</button>
+                            </div>
+                            <div class="preview-container">
+                                <!-- Mockup PDF -->
+                                <div class="pdf-mockup">
+                                    <div class="pdf-header">
+                                        <div class="pdf-logo">PT NURANTA GEMILANG PERKASA</div>
+                                        <h4>PURCHASE ORDER</h4>
+                                    </div>
+                                    <div class="pdf-details">
+                                        <div>No. PO: <strong>PO-2025-001</strong></div>
+                                        <div>Tanggal: <strong>09 Nov 2025</strong></div>
+                                        <div>Vendor: <strong>PT Nuranta Gemilang...</strong></div>
+                                    </div>
+                                    <table class="pdf-table">
+                                        <tr><th>No</th><th>Nama Barang</th><th>Volume</th><th>Harga</th><th>Total</th></tr>
+                                        <tr><td>1</td><td>Solar Industri</td><td>5.000 L</td><td>Rp 14.500</td><td>Rp 72.500.000</td></tr>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="preview-details">
+                                <h5>Detail Dokumen</h5>
+                                <table class="detail-table">
+                                    <tr><td>Nama Dokumen</td><td><strong>PO_AGE_001_2025.pdf</strong></td></tr>
+                                    <tr><td>Kategori</td><td><span class="badge blue">PO</span></td></tr>
+                                    <tr><td>Vendor</td><td>PT Nuranta Gemilang Perkasa</td></tr>
+                                    <tr><td>Tanggal Upload</td><td>09 Nov 2025 16:20</td></tr>
+                                    <tr><td>Ukuran File</td><td>1.2 MB</td></tr>
+                                    <tr><td>Status</td><td><span class="badge green">Lengkap</span></td></tr>
+                                    <tr><td>Deskripsi</td><td>Purchase Order untuk pengiriman solar industri</td></tr>
+                                </table>
+                            </div>
+                            <div class="preview-actions">
+                                <button class="btn btn-primary">📥 Download</button>
+                                <button class="btn btn-outline">👁️ Preview PDF</button>
+                                <button class="btn btn-outline">⏱️ Riwayat Versi</button>
+                            </div>
+                        </div>
+                    </div>
+
+                </div> <!-- End Content 3 Col -->
+
             </div>
 
-            <!-- KONTEN: VENDOR -->
-            <div id="tab-vendor" class="tab-content" style="display: none;">
+            <!-- KONTEN LAINNYA (VENDOR, TRANSAKSI, LAPORAN) -->
+            <div id="tab-vendor" class="tab-content" style="display: none; padding: 24px;">
                 <div class="panel">
-                    <div class="panel-header"><h3>Master Vendor</h3></div>
+                    <div class="panel-header"><h3>Master Vendor & Izin Migas</h3></div>
                     <form id="vendorForm">
                         <div class="form-grid" style="grid-template-columns: repeat(4, 1fr);">
-                            <label>Nama Vendor *<input id="v_nama" required></label>
+                            <label>Nama Vendor *<input id="v_nama" required placeholder="PT ..."></label>
                             <label>Tgl Izin Migas<input id="v_mulai" type="date"></label>
                             <label>Tgl Akhir Izin<input id="v_akhir" type="date"></label>
                             <label>File Izin (PDF)<input id="v_file" type="file" accept="application/pdf"></label>
                         </div>
-                        <button id="v_submitBtn" class="button primary" type="submit" style="margin-top:15px;">Simpan Vendor</button>
+                        <button id="v_submitBtn" class="btn btn-primary" type="submit" style="margin-top:15px;">Simpan Vendor</button>
                         <div id="vendorMessage" style="margin-top:10px; font-size:13px;"></div>
                     </form>
                 </div>
             </div>
 
-            <!-- KONTEN: TRANSAKSI -->
-            <div id="tab-transaksi" class="tab-content" style="display: none;">
+            <div id="tab-transaksi" class="tab-content" style="display: none; padding: 24px;">
                 <div class="panel">
-                    <div class="panel-header"><h3>Tambah Transaksi</h3></div>
+                    <div class="panel-header"><h3>Tambah Transaksi & Upload Dokumen</h3></div>
                     <form id="uploadForm">
-                        <div class="form-grid">
+                        <div class="form-grid" style="grid-template-columns: repeat(4, 1fr);">
                             <label>Tanggal Invoice<input id="tglInvoice" type="date"></label>
                             <label>Nama Vendor *<select id="vendor" required><option value="">-- Pilih --</option></select></label>
-                            <label>No. Invoice<input id="noInv" required></label>
-                            <label>No. PO<input id="noPO"></label>
-                            <label>Volume (L)<input id="volume" type="number"></label>
-                            <label>Total (Rp)<input id="total" type="text"></label>
-                            <label>Status Bayar<select id="statusBayar"><option>Belum Bayar</option><option>Lunas</option></select></label>
+                            <label>No. Invoice<input id="noInv" required placeholder="INV/..."></label>
+                            <label>No. PO<input id="noPO" placeholder="PO/..."></label>
+                            <label>Volume (Liter)<input id="volume" type="number" placeholder="8000"></label>
+                            <label>Total (Rp)<input id="total" type="text" placeholder="130000000"></label>
+                            <label>Status Bayar<select id="statusBayar"><option>Belum Bayar</option><option>Lunas</option><option>Sebagian</option></select></label>
                             <label>Status Dokumen<select id="statusDok"><option>Lengkap</option><option>Kurang</option></select></label>
                         </div>
-                        <div id="dokumenContainer" style="margin-top:15px;">
+                        <div id="dokumenContainer" style="margin-top:15px; padding-top:15px; border-top:1px solid #e2e8f0;">
                             <div class="dokumen-row form-grid" style="grid-template-columns: 1fr 2fr;">
-                                <label>Jenis<select class="doc-type"><option>Invoice</option><option>PO</option><option>Surat Jalan</option><option>BAST</option></select></label>
+                                <label>Jenis Dokumen<select class="doc-type"><option>Invoice</option><option>PO</option><option>Surat Jalan</option><option>BAST</option><option>Faktur Pajak</option></select></label>
                                 <label>File PDF<input type="file" class="doc-file" accept="application/pdf"></label>
                             </div>
                         </div>
-                        <button type="button" id="addDocBtn" class="button secondary" style="margin-top:10px;">+ Tambah File</button>
-                        <button id="submitBtn" class="button primary" type="submit" style="margin-top:10px;">Simpan Transaksi</button>
-                        <div id="formMessage" style="margin-top:10px; font-size:13px;"></div>
+                        <button type="button" id="addDocBtn" class="btn btn-outline" style="margin-top:10px;">+ Tambah File Lain</button>
+                        <div class="form-footer" style="margin-top:20px;">
+                            <span id="formMessage" style="font-size:13px;"></span>
+                            <button id="submitBtn" class="btn btn-primary" type="submit">Simpan Transaksi</button>
+                        </div>
                     </form>
                 </div>
             </div>
 
-            <!-- KONTEN: LAPORAN -->
-            <div id="tab-laporan" class="tab-content" style="display: none;">
+            <div id="tab-laporan" class="tab-content" style="display: none; padding: 24px;">
                 <div class="panel">
-                    <div class="panel-header"><h3>Rekap per Vendor</h3><input id="searchInput" type="text" placeholder="🔍 Cari..."></div>
-                    <table class="table-arsip">
-                        <thead><tr><th>Vendor</th><th>Status Izin</th><th>Total Trx</th><th>Total Tagihan</th><th>Status Bayar</th><th>Status Dok</th></tr></thead>
+                    <div class="panel-header"><h3>Rekap Laporan per Vendor</h3></div>
+                    <div style="margin-bottom: 15px;">
+                        <input id="searchInput" type="text" placeholder="🔍 Cari Nama Vendor atau Bulan..." style="padding: 10px; border:1px solid #cbd5e1; border-radius:6px; font-size: 14px; width:100%;">
+                    </div>
+                    <table class="table-modern">
+                        <thead><tr><th>Vendor</th><th>Status Izin</th><th>Total Trx</th><th>Total Tagihan</th><th>Status Bayar</th><th>Status Dokumen</th></tr></thead>
                         <tbody id="vendorRows"></tbody>
                     </table>
                 </div>
             </div>
+            
+            <div id="tab-dashboard" class="tab-content" style="display: none; padding:24px;"><div class="panel"><h3>Dashboard Utama</h3><p>Selamat datang di sistem ERP Arsip Dokumen.</p></div></div>
+
         </main>
     </div>
     <script src="script.js"></script>
