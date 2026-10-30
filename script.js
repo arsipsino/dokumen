@@ -1,5 +1,5 @@
 // ============================================
-// FRONTEND ARSIP DOKUMEN DIGITAL - PT AGE
+// FRONTEND ARSIP DOKUMEN DIGITAL - PT SINO
 // ============================================
 const API_URL = "https://script.google.com/macros/s/AKfycbwJTyaGB4CCa9LVOa6nhHeGoZy5noRlGJhV8Q3VBzq5tYUNNpagP8MP8Sg_MLfyS8NY3w/exec";
 const API_PIN = "RAHASIA123"; // Harus sama dengan CONFIG.SECRET_PIN pada Code.gs
@@ -19,59 +19,67 @@ document.addEventListener('DOMContentLoaded', () => {
   initApp();
 });
 
+function setText(id, value) { const el = $(id); if (el) el.textContent = value == null ? '' : String(value); }
+function setHref(id, value) { const el = $(id); if (el && el.tagName === 'A') { el.href = value || '#'; el.setAttribute('rel', 'noopener'); } }
+function setHidden(id, hidden) { const el = $(id); if (el) el.hidden = !!hidden; }
+
 async function initApp() {
-  $('loadingIndicator').hidden = false;
-  $('appError').hidden = true;
+  setHidden('loadingIndicator', false);
+  setHidden('appError', true);
+  setText('connectionStatus', 'Menghubungkan…');
   try {
     const data = await callAPI('getInitialData');
     allData = Object.assign({ vendors: [], transaksi: [], arsip: [], counts: {}, izin: {}, storage: {} }, data || {});
-    $('loadingIndicator').hidden = true;
-    $('sheetLink').href = allData.spreadsheetUrl || '#';
-    $('driveLink').href = allData.driveUrl || '#';
-    $('driveLinkSettings').href = allData.driveUrl || '#';
+    setHidden('loadingIndicator', true);
+    setHref('sheetLink', allData.spreadsheetUrl);
+    setHref('driveLink', allData.driveUrl);
+    setHref('driveLinkSettings', allData.driveUrl);
     populateVendorOptions();
     populateYearOptions();
     renderAll();
-    $('connectionStatus').textContent = 'Terhubung';
+    setText('connectionStatus', 'Terhubung');
   } catch (err) {
-    $('loadingIndicator').hidden = true;
-    $('appError').hidden = false;
-    $('appError').textContent = 'Gagal terhubung ke server: ' + err.message + '. Periksa URL Web App, PIN, dan izin deployment Apps Script.';
-    $('connectionStatus').textContent = 'Tidak terhubung';
+    setHidden('loadingIndicator', true);
+    const message = err && err.message ? err.message : String(err || 'Kesalahan tidak diketahui');
+    setHidden('appError', false);
+    setText('appError', 'Data belum dapat dimuat: ' + message + '. Periksa respons Apps Script dan izin aksesnya.');
+    setText('connectionStatus', 'Perlu pemeriksaan');
+    console.error('initApp:', err);
   }
 }
 
 function bindEvents() {
+  const on = (id, event, handler) => { const el = $(id); if (el) el.addEventListener(event, handler); };
   document.querySelectorAll('.nav-item').forEach(btn => btn.addEventListener('click', () => switchTab(btn.dataset.tab)));
   document.querySelectorAll('[data-go]').forEach(btn => btn.addEventListener('click', () => switchTab(btn.dataset.go)));
-  $('mobileMenu').addEventListener('click', () => $('sidebar').classList.toggle('open'));
-  $('searchArsip').addEventListener('input', () => { currentPage = 1; renderArsipTable(); });
-  $('clearSearch').addEventListener('click', () => { $('searchArsip').value = ''; currentPage = 1; renderArsipTable(); });
-  $('categoryList').addEventListener('click', categoryClick);
-  $('applyFilter').addEventListener('click', applyFilter);
-  $('resetFilter').addEventListener('click', resetFilter);
-  $('filterVendor').addEventListener('change', () => {});
-  $('selectAll').addEventListener('change', e => document.querySelectorAll('.row-check').forEach(c => c.checked = e.target.checked));
-  $('exportExcel').addEventListener('click', exportArsip);
-  $('exportReport').addEventListener('click', exportReport);
-  $('closePreview').addEventListener('click', clearPreview);
-  $('openPreview').addEventListener('click', () => { const d = selectedDoc(); if (d) window.open(d.previewUrl || d.link, '_blank', 'noopener'); });
-  $('versionHistory').addEventListener('click', showHistory);
-  $('closeHistory').addEventListener('click', () => $('historyModal').hidden = true);
-  $('historyModal').addEventListener('click', e => { if (e.target === $('historyModal')) $('historyModal').hidden = true; });
-  $('addDocBtn').addEventListener('click', addDocRow);
-  $('uploadForm').addEventListener('submit', handleUploadTransaksi);
-  $('uploadFormLepas').addEventListener('submit', handleUploadLepas);
-  $('vendorForm').addEventListener('submit', handleSaveVendor);
-  $('searchInput').addEventListener('input', renderLaporanVendor);
-  $('docKategori').addEventListener('change', () => $('uploadVendorWrap').hidden = $('docKategori').value !== 'VENDOR');
+  on('mobileMenu', 'click', () => $('sidebar')?.classList.toggle('open'));
+  on('searchArsip', 'input', () => { currentPage = 1; renderArsipTable(); });
+  on('clearSearch', 'click', () => { if ($('searchArsip')) $('searchArsip').value = ''; currentPage = 1; renderArsipTable(); });
+  on('categoryList', 'click', categoryClick);
+  on('applyFilter', 'click', applyFilter);
+  on('resetFilter', 'click', resetFilter);
+  on('selectAll', 'change', e => document.querySelectorAll('.row-check').forEach(c => c.checked = e.target.checked));
+  on('exportExcel', 'click', exportArsip);
+  on('exportReport', 'click', exportReport);
+  on('closePreview', 'click', clearPreview);
+  on('openPreview', 'click', () => { const d = selectedDoc(); if (d) window.open(d.previewUrl || d.link, '_blank', 'noopener'); });
+  on('versionHistory', 'click', showHistory);
+  on('closeHistory', 'click', () => setHidden('historyModal', true));
+  on('historyModal', 'click', e => { if (e.target === $('historyModal')) setHidden('historyModal', true); });
+  on('addDocBtn', 'click', addDocRow);
+  on('uploadForm', 'submit', handleUploadTransaksi);
+  on('uploadFormLepas', 'submit', handleUploadLepas);
+  on('vendorForm', 'submit', handleSaveVendor);
+  on('searchInput', 'input', renderLaporanVendor);
+  on('docKategori', 'change', () => setHidden('uploadVendorWrap', $('docKategori').value !== 'VENDOR'));
 }
+
 
 function switchTab(tabId) {
   document.querySelectorAll('.tab-content').forEach(tab => tab.hidden = true);
   const target = $('tab-' + tabId);
   if (target) target.hidden = false;
-  document.querySelectorAll('.nav-item').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tabId || (tabId === 'upload' && btn.dataset.tab === 'arsip')));
+  document.querySelectorAll('.nav-item').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tabId));
   const titles = { dashboard:'Dashboard', vendor:'Master Vendor', izin:'Izin Migas', transaksi:'Transaksi Pembelian', arsip:'Arsip Dokumen Digital', upload:'Upload Dokumen', laporan:'Rekap Laporan', pengaturan:'Pengaturan' };
   $('pageTitle').textContent = titles[tabId] || 'Arsip Dokumen Digital';
   $('sidebar').classList.remove('open');
@@ -87,10 +95,18 @@ async function callAPI(action, payload = {}) {
   body.append('action', action);
   body.append('pin', API_PIN);
   body.append('payload', JSON.stringify(payload));
-  const response = await fetch(API_URL, { method: 'POST', body });
-  if (!response.ok) throw new Error('HTTP ' + response.status);
-  const result = await response.json();
-  if (!result.success) throw new Error(result.message || 'Permintaan gagal.');
+  let response;
+  try {
+    response = await fetch(API_URL, { method: 'POST', body, redirect: 'follow', cache: 'no-store' });
+  } catch (networkError) {
+    throw new Error('Tidak dapat menjangkau Web App. Periksa koneksi internet dan deployment Apps Script. ' + networkError.message);
+  }
+  if (!response.ok) throw new Error('Web App mengembalikan HTTP ' + response.status);
+  const raw = await response.text();
+  let result;
+  try { result = JSON.parse(raw); }
+  catch (_) { throw new Error('Respons Web App bukan JSON. Pastikan URL mengarah ke deployment /exec dan akses Web App diizinkan.'); }
+  if (!result || result.success !== true) throw new Error((result && result.message) || 'Permintaan ditolak oleh server.');
   return result.data;
 }
 
@@ -320,8 +336,10 @@ function fileToBase64(file) {
   });
 }
 function setBusy(id, busy, label) {
-  const btn = $(id); btn.disabled = busy; btn.dataset.original = btn.dataset.original || btn.textContent;
-  btn.textContent = label;
+  const btn = $(id); if (!btn) return;
+  if (!btn.dataset.original) btn.dataset.original = btn.textContent;
+  btn.disabled = !!busy;
+  btn.textContent = busy ? label : btn.dataset.original;
 }
 async function handleSaveVendor(e) {
   e.preventDefault();
@@ -378,7 +396,8 @@ async function handleUploadLepas(e) {
   try {
     const files = [];
     for (const file of selectedFiles) {
-      files.push({ name: file.name, mimeType: file.type || 'application/octet-stream', size: formatBytes(file.size), base64: await fileToBase64(file) });
+      if (file.type && file.type !== 'application/pdf') throw new Error('File arsip harus berupa PDF: ' + file.name);
+      files.push({ name: file.name, mimeType: file.type || 'application/pdf', size: formatBytes(file.size), base64: await fileToBase64(file) });
     }
     const result = await callAPI('uploadDokumenLepas', {
       kategori: $('docKategori').value, namaDok: $('docNama').value.trim(),
