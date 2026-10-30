@@ -57,13 +57,22 @@ function switchTab(tabId, el) {
 }
 
 // ==================== HELPER API ====================
+// ==================== HELPER API ====================
 async function callAPI(action, payload = {}) {
-    const body = JSON.stringify({ action, pin: API_PIN, payload });
+    // Trik: Gunakan URLSearchParams agar Google menganggap ini request form biasa (Bypass CORS)
+    const formData = new URLSearchParams();
+    formData.append('action', action);
+    formData.append('pin', API_PIN);
+    formData.append('payload', JSON.stringify(payload));
+
     const response = await fetch(API_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' }, 
-        body: body
+        body: formData,
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+        }
     });
+    
     const res = await response.json();
     if (!res.success) throw new Error(res.message);
     return res.data;
