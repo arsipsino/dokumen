@@ -2,7 +2,8 @@
 // FRONTEND ARSIP DOKUMEN DIGITAL - PT SINO
 // ============================================
 const API_URL = "https://script.google.com/macros/s/AKfycbwJTyaGB4CCa9LVOa6nhHeGoZy5noRlGJhV8Q3VBzq5tYUNNpagP8MP8Sg_MLfyS8NY3w/exec";
-const API_PIN = "RAHASIA123"; // Harus sama dengan CONFIG.SECRET_PIN pada Code.gs
+const SESSION_KEY = "pt_sino_session";
+let currentUser = null;
 const $ = id => document.getElementById(id);
 const PAGE_SIZE = 15;
 let allData = { vendors: [], transaksi: [], arsip: [], counts: {}, izin: {}, storage: {} };
@@ -16,12 +17,24 @@ let toastTimer;
 
 document.addEventListener('DOMContentLoaded', () => {
   bindEvents();
-  initApp();
+  restoreSession();
 });
 
 function setText(id, value) { const el = $(id); if (el) el.textContent = value == null ? '' : String(value); }
 function setHref(id, value) { const el = $(id); if (el && el.tagName === 'A') { el.href = value || '#'; el.setAttribute('rel', 'noopener'); } }
 function setHidden(id, hidden) { const el = $(id); if (el) el.hidden = !!hidden; }
+
+function getSession() { try { return JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null'); } catch (_) { return null; } }
+function restoreSession() {
+  const session=getSession(); if(!session || !session.token){showLogin();return;}
+  currentUser=session.user||null; setHidden('loginScreen',true); setHidden('appShell',false); updateProfile(); initApp();
+}
+function showLogin(message='') { setHidden('appShell',true); setHidden('loginScreen',false); setText('loginMessage',message); if($('loginPassword')) $('loginPassword').value=''; }
+function updateProfile(){const u=currentUser||{};setText('profileName',u.displayName||u.username||'Pengguna');setText('profileRole',u.role==='admin'?'Administrator':'Pengguna');setText('profileAvatar',String(u.displayName||u.username||'U').charAt(0).toUpperCase());setHidden('userAdminPanel',u.role!=='admin');if(u.role==='admin')loadUsers();}
+async function handleLogin(e){e.preventDefault();const b=$('loginButton');b.disabled=true;b.textContent='Memeriksa…';setText('loginMessage','');try{const data=await callAPI('login',{username:$('loginUsername').value.trim(),password:$('loginPassword').value});sessionStorage.setItem(SESSION_KEY,JSON.stringify(data));currentUser=data.user;setHidden('loginScreen',true);setHidden('appShell',false);updateProfile();await initApp();}catch(err){setText('loginMessage',err.message||'Login gagal.');}finally{b.disabled=false;b.textContent='Masuk ke Sistem';}}
+async function handleLogout(){try{await callAPI('logout');}catch(_){}sessionStorage.removeItem(SESSION_KEY);currentUser=null;showLogin('Anda telah keluar dari sistem.');}
+async function handleCreateUser(e){e.preventDefault();const b=$('createUserButton');b.disabled=true;b.textContent='Membuat…';setText('userAdminMessage','');try{const r=await callAPI('adminCreateUser',{username:$('newUsername').value,displayName:$('newDisplayName').value,password:$('newUserPassword').value,role:$('newUserRole').value});$('createUserForm').reset();setText('userAdminMessage',r.message);await loadUsers();}catch(err){setText('userAdminMessage',err.message);}finally{b.disabled=false;b.textContent='＋ Buat Akun';}}
+async function loadUsers(){try{const users=await callAPI('adminListUsers');$('userRows').innerHTML=users.map(u=>`<tr><td><b>${esc(u.username)}</b></td><td>${esc(u.displayName)}</td><td>${esc(u.role)}</td><td>${u.active?'Aktif':'Nonaktif'}</td><td>${esc(u.lastLogin||'Belum login')}</td><td><button class="btn btn-outline btn-small" data-user-toggle="${esc(u.username)}" data-active="${u.active?'false':'true'}">${u.active?'Nonaktifkan':'Aktifkan'}</button></td></tr>`).join('')||'<tr><td colspan="6">Belum ada akun.</td></tr>'; $('userRows').querySelectorAll('[data-user-toggle]').forEach(b=>b.addEventListener('click',async()=>{try{await callAPI('adminSetUserStatus',{username:b.dataset.userToggle,active:b.dataset.active==='true',requester:currentUser.username});await loadUsers();}catch(err){setText('userAdminMessage',err.message);}}));}catch(err){setText('userAdminMessage',err.message);}}
 
 async function initApp() {
   setHidden('loadingIndicator', false);
@@ -41,6 +54,7 @@ async function initApp() {
   } catch (err) {
     setHidden('loadingIndicator', true);
     const message = err && err.message ? err.message : String(err || 'Kesalahan tidak diketahui');
+    if (/sesi login/i.test(message)) { sessionStorage.removeItem(SESSION_KEY); currentUser=null; showLogin(message); return; }
     setHidden('appError', false);
     setText('appError', 'Data belum dapat dimuat: ' + message + '. Periksa respons Apps Script dan izin aksesnya.');
     setText('connectionStatus', 'Perlu pemeriksaan');
@@ -72,6 +86,9 @@ function bindEvents() {
   on('vendorForm', 'submit', handleSaveVendor);
   on('searchInput', 'input', renderLaporanVendor);
   on('docKategori', 'change', () => setHidden('uploadVendorWrap', $('docKategori').value !== 'VENDOR'));
+  on('loginForm', 'submit', handleLogin);
+  on('logoutButton', 'click', handleLogout);
+  on('createUserForm', 'submit', handleCreateUser);
 }
 
 
@@ -93,7 +110,9 @@ function switchTab(tabId) {
 async function callAPI(action, payload = {}) {
   const body = new URLSearchParams();
   body.append('action', action);
-  body.append('pin', API_PIN);
+  const session = getSession();
+  if (action !== 'login' && action !== 'logout') { if (!session || !session.token) throw new Error('Sesi login berakhir. Silakan masuk kembali.'); body.append('token', session.token); }
+  if (action === 'logout' && session) body.append('token', session.token);
   body.append('payload', JSON.stringify(payload));
   let response;
   try {
