@@ -33,6 +33,9 @@
       <button class="nav-item" data-tab="izin"><span class="nav-icon">▤</span>Izin Migas</button>
       <button class="nav-item" data-tab="transaksi"><span class="nav-icon">▧</span>Transaksi</button>
       <button class="nav-item" data-tab="upload"><span class="nav-icon">⇧</span>Upload Dokumen</button>
+      <button class="nav-item" data-tab="po"><span class="nav-icon">▤</span>Arsip PO</button>
+      <button class="nav-item" data-tab="purchasing"><span class="nav-icon">▧</span>Dokumen Purchasing</button>
+      <button class="nav-item" data-tab="chat"><span class="nav-icon">☏</span>Chat Internal</button>
       <button class="nav-item active" data-tab="arsip"><span class="nav-icon">▣</span>Arsip Dokumen</button>
       <button class="nav-item" data-tab="laporan"><span class="nav-icon">▥</span>Rekap Laporan</button>
       <button class="nav-item" data-tab="pengaturan"><span class="nav-icon">⚙</span>Pengaturan</button>
@@ -217,6 +220,55 @@
           <label class="field-label span-2">Pilih File<input id="docFileLepas" type="file" multiple required></label>
           <div class="form-submit span-2"><span id="msgLepas" class="form-message"></span><button id="btnUploadLepas" class="btn btn-primary" type="submit">Upload ke Arsip</button></div>
         </form>
+      </section>
+    </section>
+
+    <!-- PURCHASE ORDER -->
+    <section id="tab-po" class="tab-content" hidden>
+      <div class="section-intro"><h2>Arsip Purchase Order</h2><p>Unggah dan telusuri dokumen PO dalam format PDF. Semua pengguna terdaftar dapat melihat arsip.</p></div>
+      <section class="panel form-panel"><h2 class="panel-title">Upload Purchase Order</h2>
+        <form id="poUploadForm" class="form-grid">
+          <label class="field-label">Tanggal PO *<input id="poTanggal" type="date" required></label>
+          <label class="field-label">Nomor PO *<input id="poNomor" required placeholder="PO/001/2026"></label>
+          <label class="field-label">Vendor<select id="poVendor"><option value="">Pilih Vendor (opsional)</option></select></label>
+          <label class="field-label">Proyek / Lokasi<input id="poProyek" placeholder="Nama proyek atau lokasi"></label>
+          <label class="field-label span-2">Judul / Keterangan<input id="poJudul" placeholder="Keterangan tambahan (opsional)"></label>
+          <label class="field-label span-2">File PO (PDF, maks. 8 MB) *<input id="poFile" type="file" accept="application/pdf,.pdf" required></label>
+          <div class="form-submit span-2"><span id="poMessage" class="form-message"></span><button id="poSubmit" class="btn btn-primary" type="submit">Upload PO</button></div>
+        </form>
+      </section>
+      <section class="panel"><div class="table-heading"><div><h2>Daftar Purchase Order</h2><small id="poCount">0 dokumen</small></div><button class="btn btn-outline btn-small" id="refreshPO">↻ Perbarui</button></div>
+        <div class="table-wrap"><table class="documents-table"><thead><tr><th>Tanggal</th><th>Nomor PO</th><th>Vendor</th><th>Proyek/Lokasi</th><th>File</th><th>Pengunggah</th><th>Aksi</th></tr></thead><tbody id="poRows"></tbody></table></div>
+      </section>
+    </section>
+
+    <!-- PURCHASING DOCUMENTS -->
+    <section id="tab-purchasing" class="tab-content" hidden>
+      <div class="section-intro"><h2>Dokumen Purchasing</h2><p>Simpan surat penawaran harga, formulir permintaan barang, dan dokumen pembanding harga.</p></div>
+      <section class="panel form-panel"><h2 class="panel-title">Upload Dokumen Purchasing</h2>
+        <form id="purchasingUploadForm" class="form-grid">
+          <label class="field-label">Jenis Dokumen *<select id="purJenis" required><option>Surat Penawaran Harga</option><option>Formulir Permohonan Permintaan Barang</option><option>Dokumen Pembanding Harga</option></select></label>
+          <label class="field-label">Tanggal Dokumen<input id="purTanggal" type="date"></label>
+          <label class="field-label">Judul / Keterangan<input id="purJudul" placeholder="Nama atau keterangan dokumen"></label>
+          <label class="field-label">Vendor<select id="purVendor"><option value="">Pilih Vendor (opsional)</option></select></label>
+          <label class="field-label">Nomor PO terkait<input id="purNoPO" placeholder="Opsional"></label>
+          <label class="field-label span-2">File PDF (maks. 8 MB per file) *<input id="purFiles" type="file" accept="application/pdf,.pdf" multiple required></label>
+          <div class="form-submit span-2"><span id="purMessage" class="form-message"></span><button id="purSubmit" class="btn btn-primary" type="submit">Upload Dokumen</button></div>
+        </form>
+      </section>
+      <section class="panel"><div class="table-heading"><div><h2>Daftar Dokumen Purchasing</h2><small id="purCount">0 dokumen</small></div><button class="btn btn-outline btn-small" id="refreshPurchasing">↻ Perbarui</button></div>
+        <div class="table-wrap"><table class="documents-table"><thead><tr><th>Tanggal</th><th>Jenis</th><th>Judul</th><th>Vendor</th><th>No. PO</th><th>File</th><th>Pengunggah</th><th>Aksi</th></tr></thead><tbody id="purRows"></tbody></table></div>
+      </section>
+    </section>
+
+    <!-- INTERNAL CHAT -->
+    <section id="tab-chat" class="tab-content" hidden>
+      <div class="section-intro"><h2>Chat Internal PT SINO</h2><p>Ruang komunikasi bersama untuk seluruh pengguna yang memiliki akun aktif.</p></div>
+      <section class="panel chat-panel">
+        <div class="chat-toolbar"><div><b>Ruang Chat Umum</b><small>Pesan diperbarui otomatis setiap beberapa detik.</small></div><button class="btn btn-outline btn-small" id="refreshChat">↻ Perbarui</button></div>
+        <div id="chatMessages" class="chat-messages" aria-live="polite"><div class="chat-empty">Memuat percakapan…</div></div>
+        <form id="chatForm" class="chat-compose"><textarea id="chatInput" rows="2" maxlength="2000" placeholder="Tulis pesan untuk semua pengguna…" required></textarea><button id="chatSend" class="btn btn-primary" type="submit">Kirim</button></form>
+        <small class="chat-note">Hindari mengirim password, data rahasia, atau informasi sensitif melalui chat.</small>
       </section>
     </section>
 
