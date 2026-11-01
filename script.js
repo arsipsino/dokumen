@@ -14,6 +14,9 @@ let activeCategory = '';
 let activeSubcategory = '';
 let appliedFilters = { vendor: '', year: '', month: '', status: '' };
 let toastTimer;
+let purchaseData = { purchaseOrders: [], purchasingDocs: [] };
+let chatPollTimer = null;
+let chatLastIds = new Set();
 
 document.addEventListener('DOMContentLoaded', () => {
   bindEvents();
@@ -89,6 +92,12 @@ function bindEvents() {
   on('loginForm', 'submit', handleLogin);
   on('logoutButton', 'click', handleLogout);
   on('createUserForm', 'submit', handleCreateUser);
+  on('poUploadForm', 'submit', handlePOUpload);
+  on('purchasingUploadForm', 'submit', handlePurchasingUpload);
+  on('refreshPO', 'click', loadPurchaseData);
+  on('refreshPurchasing', 'click', loadPurchaseData);
+  on('chatForm', 'submit', handleSendChat);
+  on('refreshChat', 'click', loadChatMessages);
 }
 
 
@@ -97,13 +106,15 @@ function switchTab(tabId) {
   const target = $('tab-' + tabId);
   if (target) target.hidden = false;
   document.querySelectorAll('.nav-item').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tabId));
-  const titles = { dashboard:'Dashboard', vendor:'Master Vendor', izin:'Izin Migas', transaksi:'Transaksi Pembelian', arsip:'Arsip Dokumen Digital', upload:'Upload Dokumen', laporan:'Rekap Laporan', pengaturan:'Pengaturan' };
+  const titles = { dashboard:'Dashboard', vendor:'Master Vendor', izin:'Izin Migas', transaksi:'Transaksi Pembelian', arsip:'Arsip Dokumen Digital', upload:'Upload Dokumen', po:'Arsip Purchase Order', purchasing:'Dokumen Purchasing', chat:'Chat Internal', laporan:'Rekap Laporan', pengaturan:'Pengaturan' };
   $('pageTitle').textContent = titles[tabId] || 'Arsip Dokumen Digital';
   $('sidebar').classList.remove('open');
   if (tabId === 'izin') renderIzin();
   if (tabId === 'vendor') renderVendorMaster();
   if (tabId === 'transaksi') renderTransactions();
   if (tabId === 'laporan') renderLaporanVendor();
+  if (tabId === 'po' || tabId === 'purchasing') loadPurchaseData();
+  if (tabId === 'chat') { loadChatMessages(); startChatPolling(); } else stopChatPolling();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -211,6 +222,7 @@ function populateVendorOptions() {
   $('filterVendor').innerHTML = '<option value="">Semua Vendor</option>' + options;
   $('vendor').innerHTML = '<option value="">Pilih Vendor</option>' + options;
   $('uploadVendor').innerHTML = '<option value="">Pilih Vendor</option>' + options;
+  ['poVendor','purVendor'].forEach(id => { const el=$(id); if(el) el.innerHTML='<option value="">Pilih Vendor (opsional)</option>'+options; });
 }
 function populateYearOptions() {
   const years = [...new Set(allData.arsip.map(a => (a.tanggalISO || '').slice(0,4)).filter(Boolean))].sort().reverse();
@@ -427,6 +439,68 @@ async function handleUploadLepas(e) {
   } catch (err) { $('msgLepas').textContent = err.message; }
   finally { setBusy('btnUploadLepas', false, 'Upload ke Arsip'); }
 }
+
+async function loadPurchaseData() {
+  try {
+    purchaseData = await callAPI('getPurchaseData');
+    renderPurchaseTables();
+  } catch (err) {
+    if ($('poRows')) $('poRows').innerHTML = `<tr><td colspan="7" class="empty-cell">${esc(err.message)}</td></tr>`;
+    if ($('purRows')) $('purRows').innerHTML = `<tr><td colspan="8" class="empty-cell">${esc(err.message)}</td></tr>`;
+  }
+}
+function renderPurchaseTables() {
+  const pos = purchaseData.purchaseOrders || [];
+  const docs = purchaseData.purchasingDocs || [];
+  setText('poCount', `${pos.length} dokumen`);
+  setText('purCount', `${docs.length} dokumen`);
+  if ($('poRows')) $('poRows').innerHTML = pos.length ? pos.map(p => `<tr><td>${esc(p.tanggal||'—')}</td><td><b>${esc(p.noPO)}</b></td><td>${esc(p.vendor||'—')}</td><td>${esc(p.proyek||'—')}</td><td>${esc(p.namaFile)}</td><td>${esc(p.pengunggah||'—')}</td><td><a class="btn btn-outline btn-small" href="${esc(p.link)}" target="_blank" rel="noopener">Lihat PDF ↗</a></td></tr>`).join('') : '<tr><td colspan="7" class="empty-cell">Belum ada Purchase Order.</td></tr>';
+  if ($('purRows')) $('purRows').innerHTML = docs.length ? docs.map(d => `<tr><td>${esc(d.tanggal||'—')}</td><td><span class="tag">${esc(d.jenis)}</span></td><td>${esc(d.judul||'—')}</td><td>${esc(d.vendor||'—')}</td><td>${esc(d.noPO||'—')}</td><td>${esc(d.namaFile)}</td><td>${esc(d.pengunggah||'—')}</td><td><a class="btn btn-outline btn-small" href="${esc(d.link)}" target="_blank" rel="noopener">Lihat PDF ↗</a></td></tr>`).join('') : '<tr><td colspan="8" class="empty-cell">Belum ada dokumen Purchasing.</td></tr>';
+}
+async function handlePOUpload(e) {
+  e.preventDefault();
+  const file = $('poFile').files[0];
+  if (!file) { setText('poMessage','Pilih file PDF PO.'); return; }
+  if (file.type !== 'application/pdf' && !/\.pdf$/i.test(file.name)) { setText('poMessage','File PO harus PDF.'); return; }
+  if (file.size > 8*1024*1024) { setText('poMessage','Ukuran PDF maksimal 8 MB.'); return; }
+  setBusy('poSubmit',true,'Mengunggah…'); setText('poMessage','');
+  try {
+    const result = await callAPI('uploadPurchaseOrder',{tanggal:$('poTanggal').value,noPO:$('poNomor').value.trim(),vendor:$('poVendor').value,proyek:$('poProyek').value.trim(),judul:$('poJudul').value.trim(),file:{name:file.name,base64:await fileToBase64(file)}});
+    $('poUploadForm').reset(); showToast(result.message); await loadPurchaseData();
+  } catch(err) { setText('poMessage',err.message); }
+  finally { setBusy('poSubmit',false,'Upload PO'); }
+}
+async function handlePurchasingUpload(e) {
+  e.preventDefault();
+  const files=[...$('purFiles').files];
+  if(!files.length){setText('purMessage','Pilih minimal satu file PDF.');return;}
+  for(const f of files){if((f.type!=='application/pdf'&&!/\.pdf$/i.test(f.name))){setText('purMessage','Semua file harus PDF: '+f.name);return;}if(f.size>8*1024*1024){setText('purMessage','Ukuran setiap PDF maksimal 8 MB: '+f.name);return;}}
+  setBusy('purSubmit',true,'Mengunggah…');setText('purMessage','');
+  try {
+    const encoded=[]; for(const f of files) encoded.push({name:f.name,base64:await fileToBase64(f)});
+    const result=await callAPI('uploadPurchasingDocuments',{jenis:$('purJenis').value,tanggal:$('purTanggal').value,judul:$('purJudul').value.trim(),vendor:$('purVendor').value,noPO:$('purNoPO').value.trim(),files:encoded});
+    $('purchasingUploadForm').reset();showToast(result.message);await loadPurchaseData();
+  } catch(err){setText('purMessage',err.message);}
+  finally{setBusy('purSubmit',false,'Upload Dokumen');}
+}
+async function loadChatMessages() {
+  try {
+    const messages=await callAPI('getChatMessages');
+    const box=$('chatMessages'); if(!box)return;
+    const wasNearBottom=box.scrollHeight-box.scrollTop-box.clientHeight<80;
+    box.innerHTML=messages.length?messages.map(m=>`<article class="chat-message ${m.username===currentUser?.username?'mine':''}"><div class="chat-message-meta"><b>${esc(m.nama)}</b><span>@${esc(m.username)} · ${esc(m.waktu)}</span></div><p>${esc(m.pesan).replace(/\n/g,'<br>')}</p></article>`).join(''):'<div class="chat-empty">Belum ada percakapan. Mulai obrolan bersama tim.</div>';
+    if(wasNearBottom)box.scrollTop=box.scrollHeight;
+  } catch(err) { if($('chatMessages'))$('chatMessages').innerHTML=`<div class="chat-empty">${esc(err.message)}</div>`; }
+}
+async function handleSendChat(e) {
+  e.preventDefault(); const input=$('chatInput'); const message=input.value.trim(); if(!message)return;
+  setBusy('chatSend',true,'Mengirim…');
+  try { await callAPI('sendChatMessage',{message}); input.value=''; await loadChatMessages(); input.focus(); }
+  catch(err){showToast(err.message);}
+  finally{setBusy('chatSend',false,'Kirim');}
+}
+function startChatPolling(){stopChatPolling();chatPollTimer=setInterval(()=>{if(!$('tab-chat')?.hidden)loadChatMessages();},6000);}
+function stopChatPolling(){if(chatPollTimer){clearInterval(chatPollTimer);chatPollTimer=null;}}
 
 function renderVendorMaster() {
   $('vendorCount').textContent = `${allData.vendors.length} vendor`;
