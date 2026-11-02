@@ -91,6 +91,7 @@ function bindEvents() {
   on('historyModal', 'click', e => { if (e.target === $('historyModal')) setHidden('historyModal', true); });
   on('addDocBtn', 'click', addDocRow);
   on('uploadForm', 'submit', handleUploadTransaksi);
+  on('cancelEditTrx', 'click', resetTransactionForm);
   on('uploadFormLepas', 'submit', handleUploadLepas);
   on('vendorForm', 'submit', handleSaveVendor);
   on('searchInput', 'input', renderLaporanVendor);
@@ -117,7 +118,7 @@ function switchTab(tabId) {
   const target = $('tab-' + tabId);
   if (target) target.hidden = false;
   document.querySelectorAll('.nav-item').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tabId));
-  const titles = { dashboard:'Dashboard', vendor:'Master Vendor', izin:'Izin Migas', transaksi:'Transaksi Pembelian', arsip:'Arsip Dokumen Digital', upload:'Upload Dokumen', po:'Arsip Purchase Order', purchasing:'Dokumen Purchasing', chat:'Chat Internal', laporan:'Rekap Laporan', pengaturan:'Pengaturan' };
+  const titles = { dashboard:'Dashboard', vendor:'Master Vendor', izin:'Izin Vendor / Dokumen Legalitas Vendor', transaksi:'Transaksi Pembelian', arsip:'Arsip Dokumen Digital', upload:'Upload Dokumen', po:'Arsip Purchase Order', purchasing:'Dokumen Purchasing', chat:'Chat Internal', laporan:'Rekap Laporan', pengaturan:'Pengaturan' };
   $('pageTitle').textContent = titles[tabId] || 'Arsip Dokumen Digital';
   $('sidebar').classList.remove('open');
   if (tabId === 'izin') renderIzin();
@@ -341,7 +342,7 @@ function selectDocument(id) {
     ['Nama Dokumen', doc.namaFile || doc.nama || '—'],
     ['Kategori', shortCategory(doc.nama || doc.kategori)],
     ['Vendor', doc.vendor || '—'],
-    ['Tanggal Upload', doc.tanggal || '—'],
+    ['Tanggal Invoice', doc.tanggal || '—'],
     ['Ukuran File', doc.ukuran || '—'],
     ['Status', doc.status || 'Lengkap']
   ];
@@ -354,7 +355,7 @@ function selectDocument(id) {
 function clearPreview() {
   selectedDocId = null;
   $('pdfFrameWrap').innerHTML = '<div class="preview-placeholder"><span>▤</span><b>Pilih dokumen untuk melihat preview</b><small>Preview PDF akan ditampilkan di sini</small></div>';
-  $('documentDetails').innerHTML = '<div><dt>Nama Dokumen</dt><dd>—</dd></div><div><dt>Kategori</dt><dd>—</dd></div><div><dt>Vendor</dt><dd>—</dd></div><div><dt>Tanggal Upload</dt><dd>—</dd></div><div><dt>Ukuran File</dt><dd>—</dd></div><div><dt>Status</dt><dd>—</dd></div>';
+  $('documentDetails').innerHTML = '<div><dt>Nama Dokumen</dt><dd>—</dd></div><div><dt>Kategori</dt><dd>—</dd></div><div><dt>Vendor</dt><dd>—</dd></div><div><dt>Tanggal Invoice</dt><dd>—</dd></div><div><dt>Ukuran File</dt><dd>—</dd></div><div><dt>Status</dt><dd>—</dd></div>';
   $('downloadDoc').href = '#'; $('downloadDoc').classList.add('disabled');
   $('openPreview').disabled = true; $('versionHistory').disabled = true;
   renderArsipTable();
@@ -411,7 +412,8 @@ async function handleSaveVendor(e) {
 }
 async function handleUploadTransaksi(e) {
   e.preventDefault();
-  setBusy('submitBtn', true, 'Memproses...');
+  const editingId = $('editTrxId').value;
+  setBusy('submitBtn', true, editingId ? 'Menyimpan perubahan...' : 'Memproses...');
   $('formMessage').textContent = '';
   try {
     const rows = [...document.querySelectorAll('.dokumen-row')];
@@ -424,21 +426,69 @@ async function handleUploadTransaksi(e) {
       }
     }
     const payload = {
+      id: editingId,
       tglInvoice: $('tglInvoice').value, vendor: $('vendor').value, lokasi: $('lokasi').value,
       noInv: $('noInv').value.trim(), noPO: $('noPO').value.trim(), volume: $('volume').value,
       total: $('total').value, statusBayar: $('statusBayar').value,
       statusDok: $('statusDok').value, catatan: $('catatan').value, files
     };
-    const result = await callAPI('saveTransaksiDanDokumen', payload);
-    $('uploadForm').reset();
-    $('dokumenContainer').innerHTML = '';
-    addDocRow();
+    const result = await callAPI(editingId ? 'updateTransaksi' : 'saveTransaksiDanDokumen', payload);
+    resetTransactionForm();
     showToast(result.message);
     await initApp();
-    switchTab('arsip');
+    switchTab('transaksi');
   } catch (err) { $('formMessage').textContent = err.message; }
-  finally { setBusy('submitBtn', false, 'Simpan Transaksi'); }
+  finally { setBusy('submitBtn', false, $('editTrxId').value ? 'Simpan Perubahan' : 'Simpan Transaksi'); }
 }
+
+function resetTransactionForm() {
+  const form = $('uploadForm');
+  if (form) form.reset();
+  $('editTrxId').value = '';
+  $('dokumenContainer').innerHTML = '';
+  addDocRow();
+  setText('transactionFormTitle','Tambah Transaksi & Upload Dokumen');
+  $('submitBtn').textContent = 'Simpan Transaksi';
+  setHidden('cancelEditTrx',true);
+  setText('formMessage','');
+}
+
+function editTransaction(id) {
+  const t = allData.transaksi.find(x => x.id === id);
+  if (!t) return;
+  $('editTrxId').value = t.id;
+  $('tglInvoice').value = t.tglInvoice || '';
+  $('vendor').value = t.vendor || '';
+  $('lokasi').value = t.lokasi || '';
+  $('noInv').value = t.noInv || '';
+  $('noPO').value = t.noPO || '';
+  $('volume').value = t.volume || '';
+  $('total').value = t.total || '';
+  $('statusBayar').value = t.statusBayar || 'Belum Bayar';
+  $('statusDok').value = t.statusDok || 'Lengkap';
+  $('catatan').value = t.catatan || '';
+  $('dokumenContainer').innerHTML = '';
+  addDocRow();
+  setText('transactionFormTitle','Edit Transaksi · '+t.id);
+  $('submitBtn').textContent = 'Simpan Perubahan';
+  setHidden('cancelEditTrx',false);
+  setText('formMessage','Dokumen tambahan dapat dilampirkan di bawah. Dokumen lama tetap tersimpan.');
+  $('uploadForm').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+async function deleteTransaction(id) {
+  const t = allData.transaksi.find(x => x.id === id);
+  if (!t) return;
+  const ok = window.confirm('Hapus transaksi '+t.noInv+' ('+t.id+') beserta seluruh baris arsip dan file PDF terkait? File PDF akan dipindahkan ke Trash Google Drive.');
+  if (!ok) return;
+  try {
+    const result = await callAPI('deleteTransaksi',{id});
+    showToast(result.message);
+    if ($('editTrxId').value === id) resetTransactionForm();
+    await initApp();
+  } catch(err) { showToast('Gagal menghapus: '+err.message); }
+}
+
 async function handleUploadLepas(e) {
   e.preventDefault();
   const selectedFiles = [...$('docFileLepas').files];
@@ -572,7 +622,7 @@ function renderIzin() {
     const rank = s => s === 'Kedaluwarsa' ? 0 : s.indexOf('Akan Berakhir') === 0 ? 1 : s === 'Aktif' ? 2 : 3;
     return rank(a.status) - rank(b.status);
   });
-  $('izinRows').innerHTML = sorted.length ? sorted.map(v => `<tr><td><b>${esc(v.nama)}</b></td><td>${esc(v.tglMulai || '—')}</td><td>${esc(v.tglAkhir || '—')}</td><td>${statusBadge(v.status)}</td><td>${v.linkIzin ? `<a href="${esc(v.linkIzin)}" target="_blank" rel="noopener">Lihat Izin ↗</a>` : 'Belum diunggah'}</td></tr>`).join('') : '<tr><td colspan="5" class="empty-cell">Belum ada data izin vendor.</td></tr>';
+  $('izinRows').innerHTML = sorted.length ? sorted.map(v => `<tr><td><b>${esc(v.nama)}</b></td><td>${esc(v.tglMulai || '—')}</td><td>${esc(v.tglAkhir || '—')}</td><td>${statusBadge(v.status)}</td><td>${v.linkIzin ? `<a href="${esc(v.linkIzin)}" target="_blank" rel="noopener">Lihat Dokumen ↗</a>` : 'Belum diunggah'}</td></tr>`).join('') : '<tr><td colspan="5" class="empty-cell">Belum ada data izin vendor.</td></tr>';
 }
 function statusBadge(status) {
   const cls = status === 'Aktif' || status === 'Lengkap' || status === 'Lunas' ? 'complete' : (status === 'Kedaluwarsa' || status === 'Kurang' ? 'expired' : 'incomplete');
@@ -580,7 +630,9 @@ function statusBadge(status) {
 }
 function renderTransactions() {
   $('trxCount').textContent = `${allData.transaksi.length} transaksi`;
-  $('transactionRows').innerHTML = allData.transaksi.length ? allData.transaksi.map(t => `<tr><td>${esc(t.id)}</td><td>${esc(t.tglInvoice || '—')}</td><td>${esc(t.vendor)}</td><td>${esc(t.noPO || '—')}</td><td>${Number(t.volume || 0).toLocaleString('id-ID')} L</td><td>${formatRupiah(t.total)}</td><td>${statusBadge(t.statusBayar)}</td><td>${statusBadge(t.statusDok)}</td></tr>`).join('') : '<tr><td colspan="8" class="empty-cell">Belum ada transaksi.</td></tr>';
+  $('transactionRows').innerHTML = allData.transaksi.length ? allData.transaksi.map(t => `<tr><td>${esc(t.id)}</td><td>${esc(t.tglInvoice || '—')}</td><td>${esc(t.vendor)}</td><td>${esc(t.noPO || '—')}</td><td>${Number(t.volume || 0).toLocaleString('id-ID')} L</td><td>${formatRupiah(t.total)}</td><td>${statusBadge(t.statusBayar)}</td><td>${statusBadge(t.statusDok)}</td><td><div class="row-actions"><button type="button" class="btn btn-outline btn-small" data-edit-trx="${esc(t.id)}">Edit</button><button type="button" class="btn btn-danger btn-small" data-delete-trx="${esc(t.id)}">Hapus</button></div></td></tr>`).join('') : '<tr><td colspan="9" class="empty-cell">Belum ada transaksi.</td></tr>';
+  $('transactionRows').querySelectorAll('[data-edit-trx]').forEach(b=>b.addEventListener('click',()=>editTransaction(b.dataset.editTrx)));
+  $('transactionRows').querySelectorAll('[data-delete-trx]').forEach(b=>b.addEventListener('click',()=>deleteTransaction(b.dataset.deleteTrx)));
 }
 function renderLaporanVendor() {
   const keyword = ($('searchInput')?.value || '').toLowerCase().trim();
@@ -605,7 +657,7 @@ function renderDashboard() {
 function exportArsip() {
   const chosen = [...document.querySelectorAll('.row-check:checked')].map(c => c.closest('tr')?.dataset.docId).filter(Boolean);
   const data = chosen.length ? filteredDocs.filter(d => chosen.includes(d.id)) : filteredDocs;
-  const rows = [['ID Dokumen','Tanggal Upload','Kategori','Nama Dokumen','Vendor','Nama File','Link PDF','Ukuran','Status'], ...data.map(d => [d.id,d.tanggal,d.kategori,d.nama,d.vendor,d.namaFile,d.link,d.ukuran,d.status])];
+  const rows = [['ID Dokumen','Tanggal Invoice','Kategori','Nama Dokumen','Vendor','Nama File','Link PDF','Ukuran','Status'], ...data.map(d => [d.id,d.tanggal,d.kategori,d.nama,d.vendor,d.namaFile,d.link,d.ukuran,d.status])];
   downloadCSV(rows, 'arsip-dokumen.csv');
 }
 function exportReport() {
