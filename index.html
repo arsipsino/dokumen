@@ -33,9 +33,9 @@
       <button class="nav-item" data-tab="izin"><span class="nav-icon">▤</span>Izin Migas</button>
       <button class="nav-item" data-tab="transaksi"><span class="nav-icon">▧</span>Transaksi</button>
       <button class="nav-item" data-tab="upload"><span class="nav-icon">⇧</span>Upload Dokumen</button>
-      <button class="nav-item" data-tab="po"><span class="nav-icon">▤</span>Arsip PO</button>
+      <button class="nav-item" data-tab="po"><span class="nav-icon">▤</span>Arsip PO <span class="nav-badge" id="poNavBadge" hidden></span></button>
       <button class="nav-item" data-tab="purchasing"><span class="nav-icon">▧</span>Dokumen Purchasing</button>
-      <button class="nav-item" data-tab="chat"><span class="nav-icon">☏</span>Chat Internal</button>
+      <button class="nav-item" data-tab="chat"><span class="nav-icon">☏</span>Chat Internal <span class="nav-badge" id="chatNavBadge" hidden></span></button>
       <button class="nav-item active" data-tab="arsip"><span class="nav-icon">▣</span>Arsip Dokumen</button>
       <button class="nav-item" data-tab="laporan"><span class="nav-icon">▥</span>Rekap Laporan</button>
       <button class="nav-item" data-tab="pengaturan"><span class="nav-icon">⚙</span>Pengaturan</button>
@@ -54,6 +54,7 @@
         <div><h1 id="pageTitle">Arsip Dokumen Digital</h1><p>Kelola dan simpan seluruh dokumen perusahaan dalam satu sistem</p></div>
       </div>
       <div class="topbar-right">
+        <div class="notification-wrap"><button type="button" class="notification-button" id="notificationButton" aria-label="Notifikasi">♢<span id="notificationBadge" hidden>0</span></button><div class="notification-panel" id="notificationPanel" hidden><div class="notification-panel-head"><b>Notifikasi</b><button type="button" id="markNotificationsRead">Tandai dibaca</button></div><div id="notificationItems" class="notification-items"><p class="notification-empty">Belum ada notifikasi.</p></div></div></div>
         <a class="storage-card" id="driveLink" href="#" target="_blank" rel="noopener">
           <span class="cloud-icon">☁</span>
           <span><small>Total Penyimpanan</small><strong id="storageText">Menghitung...</strong><i class="storage-track"><i id="storageBar"></i></i></span>
@@ -234,10 +235,10 @@
           <label class="field-label">Proyek / Lokasi<input id="poProyek" placeholder="Nama proyek atau lokasi"></label>
           <label class="field-label span-2">Judul / Keterangan<input id="poJudul" placeholder="Keterangan tambahan (opsional)"></label>
           <label class="field-label span-2">File PO (PDF, maks. 8 MB) *<input id="poFile" type="file" accept="application/pdf,.pdf" required></label>
-          <div class="form-submit span-2"><span id="poMessage" class="form-message"></span><button id="poSubmit" class="btn btn-primary" type="submit">Upload PO</button></div>
+          <div class="form-submit span-2"><span id="poMessage" class="form-message"></span><progress id="poProgress" max="100" value="0" hidden></progress><button id="poSubmit" class="btn btn-primary" type="submit">Upload PO</button></div>
         </form>
       </section>
-      <section class="panel"><div class="table-heading"><div><h2>Daftar Purchase Order</h2><small id="poCount">0 dokumen</small></div><button class="btn btn-outline btn-small" id="refreshPO">↻ Perbarui</button></div>
+      <section class="panel"><div class="table-heading"><div><h2>Daftar Purchase Order</h2><small id="poCount">0 dokumen</small></div><button class="btn btn-outline btn-small" id="refreshPO">↻ Perbarui</button></div><div class="po-search-row"><input id="poSearch" type="search" placeholder="Cari nomor PO, vendor, proyek, tanggal, nama file..."><span id="poSearchCount"></span></div>
         <div class="table-wrap"><table class="documents-table"><thead><tr><th>Tanggal</th><th>Nomor PO</th><th>Vendor</th><th>Proyek/Lokasi</th><th>File</th><th>Pengunggah</th><th>Aksi</th></tr></thead><tbody id="poRows"></tbody></table></div>
       </section>
     </section>
@@ -253,7 +254,7 @@
           <label class="field-label">Vendor<select id="purVendor"><option value="">Pilih Vendor (opsional)</option></select></label>
           <label class="field-label">Nomor PO terkait<input id="purNoPO" placeholder="Opsional"></label>
           <label class="field-label span-2">File PDF (maks. 8 MB per file) *<input id="purFiles" type="file" accept="application/pdf,.pdf" multiple required></label>
-          <div class="form-submit span-2"><span id="purMessage" class="form-message"></span><button id="purSubmit" class="btn btn-primary" type="submit">Upload Dokumen</button></div>
+          <div class="form-submit span-2"><span id="purMessage" class="form-message"></span><progress id="purProgress" max="100" value="0" hidden></progress><button id="purSubmit" class="btn btn-primary" type="submit">Upload Dokumen</button></div>
         </form>
       </section>
       <section class="panel"><div class="table-heading"><div><h2>Daftar Dokumen Purchasing</h2><small id="purCount">0 dokumen</small></div><button class="btn btn-outline btn-small" id="refreshPurchasing">↻ Perbarui</button></div>
@@ -292,6 +293,12 @@
           <div class="form-submit span-2"><span id="userAdminMessage" class="form-message"></span><button class="btn btn-primary" id="createUserButton" type="submit">＋ Buat Akun</button></div>
         </form>
         <div class="table-wrap"><table class="documents-table"><thead><tr><th>Username</th><th>Nama</th><th>Role</th><th>Status</th><th>Login Terakhir</th><th>Aksi</th></tr></thead><tbody id="userRows"></tbody></table></div>
+      </section>
+
+      <section class="panel user-admin-panel" id="activityAdminPanel" hidden>
+        <div class="table-heading"><div><h2>Laporan Aktivitas Pengguna</h2><small>Riwayat login, upload, chat, dan perubahan akun.</small></div><button class="btn btn-outline btn-small" id="refreshActivity">↻ Perbarui</button></div>
+        <div class="activity-filters"><input id="activitySearch" type="search" placeholder="Cari nama, username, aktivitas..."><input id="activityUser" type="search" placeholder="Filter username"><button class="btn btn-primary btn-small" id="applyActivityFilter">Cari</button></div>
+        <div class="table-wrap"><table class="documents-table"><thead><tr><th>Waktu</th><th>Username</th><th>Nama</th><th>Aktivitas</th><th>Keterangan</th></tr></thead><tbody id="activityRows"></tbody></table></div>
       </section>
     </section>
 
