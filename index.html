@@ -30,7 +30,7 @@
     <nav class="nav-menu">
       <button class="nav-item" data-tab="dashboard"><span class="nav-icon">▦</span>Dashboard</button>
       <button class="nav-item" data-tab="vendor"><span class="nav-icon">♙</span>Master Vendor</button>
-      <button class="nav-item" data-tab="izin"><span class="nav-icon">▤</span>Izin Migas</button>
+      <button class="nav-item" data-tab="izin"><span class="nav-icon">▤</span>Izin Vendor</button>
       <button class="nav-item" data-tab="transaksi"><span class="nav-icon">▧</span>Transaksi</button>
       <button class="nav-item" data-tab="upload"><span class="nav-icon">⇧</span>Upload Dokumen</button>
       <button class="nav-item" data-tab="po"><span class="nav-icon">▤</span>Arsip PO <span class="nav-badge" id="poNavBadge" hidden></span></button>
@@ -79,7 +79,7 @@
 
       <div class="notice-row">
         <div class="notice-card">
-          <div class="notice-symbol">!</div><div class="notice-copy"><b>Informasi Izin Migas Vendor</b><span id="izinNotice">Memeriksa masa berlaku izin vendor...</span></div>
+          <div class="notice-symbol">!</div><div class="notice-copy"><b>Informasi Dokumen Legalitas Vendor</b><span id="izinNotice">Memeriksa masa berlaku dokumen legalitas vendor...</span></div>
           <button class="btn btn-outline btn-small" data-go="izin">Lihat Semua <span>›</span></button>
         </div>
         <div class="license-summary">
@@ -128,7 +128,7 @@
           <div class="table-heading"><div><h2>Daftar Dokumen</h2><small id="showingCount">Menampilkan 0 dokumen</small></div><button class="btn btn-outline btn-small" id="exportExcel">⇩ Export Excel</button></div>
           <div class="table-wrap">
             <table class="documents-table">
-              <thead><tr><th class="check-col"><input id="selectAll" type="checkbox" aria-label="Pilih semua"></th><th>No.</th><th>Nama Dokumen</th><th>Kategori</th><th>Vendor</th><th>Tanggal Upload</th><th>Status</th><th>Aksi</th></tr></thead>
+              <thead><tr><th class="check-col"><input id="selectAll" type="checkbox" aria-label="Pilih semua"></th><th>No.</th><th>Nama Dokumen</th><th>Kategori</th><th>Vendor</th><th>Tanggal Invoice</th><th>Status</th><th>Aksi</th></tr></thead>
               <tbody id="arsipRows"><tr><td colspan="8" class="empty-cell">Memuat dokumen...</td></tr></tbody>
             </table>
           </div>
@@ -141,7 +141,7 @@
             <div class="pdf-frame-wrap" id="pdfFrameWrap"><div class="preview-placeholder"><span>▤</span><b>Pilih dokumen untuk melihat preview</b><small>Preview PDF akan ditampilkan di sini</small></div></div>
             <div class="preview-details">
               <h3>Detail Dokumen</h3>
-              <dl id="documentDetails"><div><dt>Nama Dokumen</dt><dd>—</dd></div><div><dt>Kategori</dt><dd>—</dd></div><div><dt>Vendor</dt><dd>—</dd></div><div><dt>Tanggal Upload</dt><dd>—</dd></div><div><dt>Ukuran File</dt><dd>—</dd></div><div><dt>Status</dt><dd>—</dd></div></dl>
+              <dl id="documentDetails"><div><dt>Nama Dokumen</dt><dd>—</dd></div><div><dt>Kategori</dt><dd>—</dd></div><div><dt>Vendor</dt><dd>—</dd></div><div><dt>Tanggal Invoice</dt><dd>—</dd></div><div><dt>Ukuran File</dt><dd>—</dd></div><div><dt>Status</dt><dd>—</dd></div></dl>
             </div>
             <div class="preview-actions"><a class="btn btn-primary disabled" id="downloadDoc" href="#" target="_blank" rel="noopener">⇩ Download</a><button class="btn btn-outline" id="openPreview" disabled>◉ Preview PDF</button><button class="btn btn-outline" id="versionHistory" disabled>◷ Riwayat Versi</button></div>
           </section>
@@ -158,7 +158,7 @@
         <article class="stat-card"><div class="stat-icon orange">▧</div><div><span>Total Transaksi</span><strong id="dashTrx">0</strong><small>Transaksi tercatat</small></div></article>
         <article class="stat-card"><div class="stat-icon teal">☁</div><div><span>Penyimpanan Arsip</span><strong id="dashStorage">0 B</strong><small>Ukuran file di Drive</small></div></article>
       </div>
-      <section class="panel"><div class="table-heading"><h2>Dokumen Terbaru</h2><button class="btn btn-outline btn-small" data-go="arsip">Buka Arsip</button></div><div class="table-wrap"><table class="documents-table"><thead><tr><th>Nama Dokumen</th><th>Kategori</th><th>Vendor</th><th>Tanggal Upload</th><th>Aksi</th></tr></thead><tbody id="recentRows"></tbody></table></div></section>
+      <section class="panel"><div class="table-heading"><h2>Dokumen Terbaru</h2><button class="btn btn-outline btn-small" data-go="arsip">Buka Arsip</button></div><div class="table-wrap"><table class="documents-table"><thead><tr><th>Nama Dokumen</th><th>Kategori</th><th>Vendor</th><th>Tanggal Invoice</th><th>Aksi</th></tr></thead><tbody id="recentRows"></tbody></table></div></section>
     </section>
 
     <!-- VENDOR -->
@@ -169,7 +169,7 @@
           <label class="field-label span-2">Nama Vendor *<input id="v_nama" required placeholder="PT Nama Vendor"></label>
           <label class="field-label">Tanggal Mulai Izin<input id="v_mulai" type="date"></label>
           <label class="field-label">Tanggal Akhir Izin<input id="v_akhir" type="date"></label>
-          <label class="field-label span-2">File Izin Migas (PDF)<input id="v_file" type="file" accept="application/pdf"></label>
+          <label class="field-label span-2">Dokumen Legalitas Vendor (PDF)<input id="v_file" type="file" accept="application/pdf"></label>
           <div class="form-submit span-2"><button id="v_submitBtn" class="btn btn-primary" type="submit">Simpan Vendor</button><span id="vendorMessage" class="form-message"></span></div>
         </form>
       </section>
@@ -178,16 +178,17 @@
 
     <!-- IZIN -->
     <section id="tab-izin" class="tab-content" hidden>
-      <div class="section-intro"><h2>Monitoring Izin Migas</h2><p>Pantau tanggal berlaku dan kedaluwarsa izin setiap vendor.</p></div>
+      <div class="section-intro"><h2>Izin Vendor / Dokumen Legalitas Vendor</h2><p>Pantau masa berlaku dan dokumen legalitas setiap vendor.</p></div>
       <div class="license-summary license-summary-large"><div class="license-pill active"><span>◉</span><div><small>Aktif</small><b id="izinAktif2">0</b></div></div><div class="license-pill soon"><span>◷</span><div><small>Segera Kedaluwarsa</small><b id="izinSegera2">0</b></div></div><div class="license-pill expired"><span>▣</span><div><small>Kedaluwarsa</small><b id="izinKedaluwarsa2">0</b></div></div></div>
-      <section class="panel"><div class="table-heading"><h2>Status Izin Vendor</h2><button class="btn btn-primary btn-small" data-go="vendor">＋ Tambah Vendor</button></div><div class="table-wrap"><table class="documents-table"><thead><tr><th>Nama Vendor</th><th>Tanggal Mulai</th><th>Tanggal Akhir</th><th>Status</th><th>Dokumen Izin</th></tr></thead><tbody id="izinRows"></tbody></table></div></section>
+      <section class="panel"><div class="table-heading"><h2>Status Dokumen Legalitas Vendor</h2><button class="btn btn-primary btn-small" data-go="vendor">＋ Tambah Vendor</button></div><div class="table-wrap"><table class="documents-table"><thead><tr><th>Nama Vendor</th><th>Tanggal Mulai</th><th>Tanggal Akhir</th><th>Status</th><th>Dokumen Legalitas</th></tr></thead><tbody id="izinRows"></tbody></table></div></section>
     </section>
 
     <!-- TRANSAKSI / UPLOAD -->
     <section id="tab-transaksi" class="tab-content" hidden>
       <div class="section-intro"><h2>Transaksi Pembelian</h2><p>Catat transaksi BBM dan lampirkan dokumen pendukung.</p></div>
       <section class="panel form-panel">
-        <h2 class="panel-title">Tambah Transaksi & Upload Dokumen</h2>
+        <h2 class="panel-title" id="transactionFormTitle">Tambah Transaksi & Upload Dokumen</h2>
+        <input type="hidden" id="editTrxId" value="">
         <form id="uploadForm">
           <div class="form-grid">
             <label class="field-label">Tanggal Invoice<input id="tglInvoice" type="date"></label>
@@ -204,10 +205,10 @@
           <div class="upload-section"><div class="table-heading"><h3>Dokumen Pendukung</h3><button type="button" id="addDocBtn" class="btn btn-outline btn-small">＋ Tambah File</button></div>
             <div id="dokumenContainer"><div class="dokumen-row"><label class="field-label">Jenis Dokumen<select class="doc-type"><option>Invoice</option><option>PO</option><option>Surat Jalan</option><option>BAST</option><option>Bukti Pembayaran</option><option>Faktur Pajak</option><option>Dokumen Pendukung</option></select></label><label class="field-label">File PDF<input type="file" class="doc-file" accept="application/pdf"></label><button type="button" class="remove-doc" disabled>×</button></div></div>
           </div>
-          <div class="form-submit"><span id="formMessage" class="form-message"></span><button id="submitBtn" class="btn btn-primary" type="submit">Simpan Transaksi</button></div>
+          <div class="form-submit"><span id="formMessage" class="form-message"></span><button id="cancelEditTrx" class="btn btn-outline" type="button" hidden>Batal Edit</button><button id="submitBtn" class="btn btn-primary" type="submit">Simpan Transaksi</button></div>
         </form>
       </section>
-      <section class="panel"><div class="table-heading"><h2>Riwayat Transaksi</h2><small id="trxCount">0 transaksi</small></div><div class="table-wrap"><table class="documents-table"><thead><tr><th>ID Transaksi</th><th>Tanggal Invoice</th><th>Vendor</th><th>No. PO</th><th>Volume</th><th>Total</th><th>Status Bayar</th><th>Status Dokumen</th></tr></thead><tbody id="transactionRows"></tbody></table></div></section>
+      <section class="panel"><div class="table-heading"><h2>Riwayat Transaksi</h2><small id="trxCount">0 transaksi</small></div><div class="table-wrap"><table class="documents-table"><thead><tr><th>ID Transaksi</th><th>Tanggal Invoice</th><th>Vendor</th><th>No. PO</th><th>Volume</th><th>Total</th><th>Status Bayar</th><th>Status Dokumen</th><th>Aksi</th></tr></thead><tbody id="transactionRows"></tbody></table></div></section>
     </section>
 
     <!-- UPLOAD DOKUMEN LEPAS -->
