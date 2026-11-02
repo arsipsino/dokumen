@@ -15,8 +15,13 @@ let activeSubcategory = '';
 let appliedFilters = { vendor: '', year: '', month: '', status: '' };
 let toastTimer;
 let purchaseData = { purchaseOrders: [], purchasingDocs: [] };
+let purchaseLoadedAt = 0;
 let chatPollTimer = null;
 let chatLastIds = new Set();
+let notificationTimer = null;
+let notificationState = { unread: 0, items: [] };
+let activityRowsCache = [];
+let storageStatsRequested = false;
 
 document.addEventListener('DOMContentLoaded', () => {
   bindEvents();
@@ -33,9 +38,9 @@ function restoreSession() {
   currentUser=session.user||null; setHidden('loginScreen',true); setHidden('appShell',false); updateProfile(); initApp();
 }
 function showLogin(message='') { setHidden('appShell',true); setHidden('loginScreen',false); setText('loginMessage',message); if($('loginPassword')) $('loginPassword').value=''; }
-function updateProfile(){const u=currentUser||{};setText('profileName',u.displayName||u.username||'Pengguna');setText('profileRole',u.role==='admin'?'Administrator':'Pengguna');setText('profileAvatar',String(u.displayName||u.username||'U').charAt(0).toUpperCase());setHidden('userAdminPanel',u.role!=='admin');if(u.role==='admin')loadUsers();}
+function updateProfile(){const u=currentUser||{};setText('profileName',u.displayName||u.username||'Pengguna');setText('profileRole',u.role==='admin'?'Administrator':'Pengguna');setText('profileAvatar',String(u.displayName||u.username||'U').charAt(0).toUpperCase());setHidden('userAdminPanel',u.role!=='admin');setHidden('activityAdminPanel',u.role!=='admin');if(u.role==='admin'){loadUsers();loadActivityLogs();}startNotificationPolling();}
 async function handleLogin(e){e.preventDefault();const b=$('loginButton');b.disabled=true;b.textContent='Memeriksa…';setText('loginMessage','');try{const data=await callAPI('login',{username:$('loginUsername').value.trim(),password:$('loginPassword').value});sessionStorage.setItem(SESSION_KEY,JSON.stringify(data));currentUser=data.user;setHidden('loginScreen',true);setHidden('appShell',false);updateProfile();await initApp();}catch(err){setText('loginMessage',err.message||'Login gagal.');}finally{b.disabled=false;b.textContent='Masuk ke Sistem';}}
-async function handleLogout(){try{await callAPI('logout');}catch(_){}sessionStorage.removeItem(SESSION_KEY);currentUser=null;showLogin('Anda telah keluar dari sistem.');}
+async function handleLogout(){stopNotificationPolling();stopChatPolling();try{await callAPI('logout');}catch(_){}sessionStorage.removeItem(SESSION_KEY);currentUser=null;showLogin('Anda telah keluar dari sistem.');}
 async function handleCreateUser(e){e.preventDefault();const b=$('createUserButton');b.disabled=true;b.textContent='Membuat…';setText('userAdminMessage','');try{const r=await callAPI('adminCreateUser',{username:$('newUsername').value,displayName:$('newDisplayName').value,password:$('newUserPassword').value,role:$('newUserRole').value});$('createUserForm').reset();setText('userAdminMessage',r.message);await loadUsers();}catch(err){setText('userAdminMessage',err.message);}finally{b.disabled=false;b.textContent='＋ Buat Akun';}}
 async function loadUsers(){try{const users=await callAPI('adminListUsers');$('userRows').innerHTML=users.map(u=>`<tr><td><b>${esc(u.username)}</b></td><td>${esc(u.displayName)}</td><td>${esc(u.role)}</td><td>${u.active?'Aktif':'Nonaktif'}</td><td>${esc(u.lastLogin||'Belum login')}</td><td><button class="btn btn-outline btn-small" data-user-toggle="${esc(u.username)}" data-active="${u.active?'false':'true'}">${u.active?'Nonaktifkan':'Aktifkan'}</button></td></tr>`).join('')||'<tr><td colspan="6">Belum ada akun.</td></tr>'; $('userRows').querySelectorAll('[data-user-toggle]').forEach(b=>b.addEventListener('click',async()=>{try{await callAPI('adminSetUserStatus',{username:b.dataset.userToggle,active:b.dataset.active==='true',requester:currentUser.username});await loadUsers();}catch(err){setText('userAdminMessage',err.message);}}));}catch(err){setText('userAdminMessage',err.message);}}
 
@@ -54,6 +59,7 @@ async function initApp() {
     populateYearOptions();
     renderAll();
     setText('connectionStatus', 'Terhubung');
+    if (!storageStatsRequested) { storageStatsRequested = true; loadStorageStats(); }
   } catch (err) {
     setHidden('loadingIndicator', true);
     const message = err && err.message ? err.message : String(err || 'Kesalahan tidak diketahui');
@@ -94,7 +100,12 @@ function bindEvents() {
   on('createUserForm', 'submit', handleCreateUser);
   on('poUploadForm', 'submit', handlePOUpload);
   on('purchasingUploadForm', 'submit', handlePurchasingUpload);
-  on('refreshPO', 'click', loadPurchaseData);
+  on('refreshPO', 'click', () => loadPurchaseData(true));
+  on('poSearch', 'input', renderPurchaseTables);
+  on('notificationButton','click',()=>{setHidden('notificationPanel',!$('notificationPanel').hidden);loadNotifications();});
+  on('markNotificationsRead','click',markNotificationsRead);
+  on('refreshActivity','click',loadActivityLogs);
+  on('applyActivityFilter','click',loadActivityLogs);
   on('refreshPurchasing', 'click', loadPurchaseData);
   on('chatForm', 'submit', handleSendChat);
   on('refreshChat', 'click', loadChatMessages);
@@ -115,24 +126,34 @@ function switchTab(tabId) {
   if (tabId === 'laporan') renderLaporanVendor();
   if (tabId === 'po' || tabId === 'purchasing') loadPurchaseData();
   if (tabId === 'chat') { loadChatMessages(); startChatPolling(); } else stopChatPolling();
+  if (tabId === 'pengaturan' && currentUser?.role === 'admin') loadActivityLogs();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-async function callAPI(action, payload = {}) {
+async function callAPI(action, payload = {}, onProgress = null) {
   const body = new URLSearchParams();
   body.append('action', action);
   const session = getSession();
   if (action !== 'login' && action !== 'logout') { if (!session || !session.token) throw new Error('Sesi login berakhir. Silakan masuk kembali.'); body.append('token', session.token); }
   if (action === 'logout' && session) body.append('token', session.token);
   body.append('payload', JSON.stringify(payload));
-  let response;
-  try {
-    response = await fetch(API_URL, { method: 'POST', body, redirect: 'follow', cache: 'no-store' });
-  } catch (networkError) {
-    throw new Error('Tidak dapat menjangkau Web App. Periksa koneksi internet dan deployment Apps Script. ' + networkError.message);
+  let raw;
+  if (typeof onProgress === 'function') {
+    raw = await new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest(); xhr.open('POST', API_URL, true); xhr.timeout = 180000;
+      xhr.upload.onprogress = ev => { if (ev.lengthComputable) onProgress(Math.round(ev.loaded / ev.total * 100)); };
+      xhr.onload = () => { if (xhr.status >= 200 && xhr.status < 300) resolve(xhr.responseText); else reject(new Error('Web App mengembalikan HTTP ' + xhr.status)); };
+      xhr.onerror = () => reject(new Error('Koneksi terputus saat mengunggah. Periksa internet lalu coba kembali.'));
+      xhr.ontimeout = () => reject(new Error('Upload melewati batas waktu. Coba file lebih kecil atau koneksi lebih stabil.'));
+      xhr.send(body);
+    });
+  } else {
+    let response;
+    try { response = await fetch(API_URL, { method: 'POST', body, redirect: 'follow', cache: 'no-store' }); }
+    catch (networkError) { throw new Error('Tidak dapat menjangkau Web App. Periksa koneksi internet dan deployment Apps Script. ' + networkError.message); }
+    if (!response.ok) throw new Error('Web App mengembalikan HTTP ' + response.status);
+    raw = await response.text();
   }
-  if (!response.ok) throw new Error('Web App mengembalikan HTTP ' + response.status);
-  const raw = await response.text();
   let result;
   try { result = JSON.parse(raw); }
   catch (_) { throw new Error('Respons Web App bukan JSON. Pastikan URL mengarah ke deployment /exec dan akses Web App diizinkan.'); }
@@ -440,9 +461,11 @@ async function handleUploadLepas(e) {
   finally { setBusy('btnUploadLepas', false, 'Upload ke Arsip'); }
 }
 
-async function loadPurchaseData() {
+async function loadPurchaseData(force = false) {
+  if (!force && purchaseLoadedAt && Date.now()-purchaseLoadedAt < 30000) { renderPurchaseTables(); return; }
   try {
     purchaseData = await callAPI('getPurchaseData');
+    purchaseLoadedAt = Date.now();
     renderPurchaseTables();
   } catch (err) {
     if ($('poRows')) $('poRows').innerHTML = `<tr><td colspan="7" class="empty-cell">${esc(err.message)}</td></tr>`;
@@ -450,9 +473,11 @@ async function loadPurchaseData() {
   }
 }
 function renderPurchaseTables() {
-  const pos = purchaseData.purchaseOrders || [];
+  const allPos = purchaseData.purchaseOrders || [];
+  const q = String($('poSearch')?.value || '').trim().toLowerCase();
+  const pos = allPos.filter(p => !q || [p.noPO,p.vendor,p.proyek,p.tanggal,p.namaFile,p.pengunggah,p.judul].join(' ').toLowerCase().includes(q));
   const docs = purchaseData.purchasingDocs || [];
-  setText('poCount', `${pos.length} dokumen`);
+  setText('poCount', `${allPos.length} dokumen`); setText('poSearchCount', q ? `${pos.length} hasil ditemukan` : '');
   setText('purCount', `${docs.length} dokumen`);
   if ($('poRows')) $('poRows').innerHTML = pos.length ? pos.map(p => `<tr><td>${esc(p.tanggal||'—')}</td><td><b>${esc(p.noPO)}</b></td><td>${esc(p.vendor||'—')}</td><td>${esc(p.proyek||'—')}</td><td>${esc(p.namaFile)}</td><td>${esc(p.pengunggah||'—')}</td><td><a class="btn btn-outline btn-small" href="${esc(p.link)}" target="_blank" rel="noopener">Lihat PDF ↗</a></td></tr>`).join('') : '<tr><td colspan="7" class="empty-cell">Belum ada Purchase Order.</td></tr>';
   if ($('purRows')) $('purRows').innerHTML = docs.length ? docs.map(d => `<tr><td>${esc(d.tanggal||'—')}</td><td><span class="tag">${esc(d.jenis)}</span></td><td>${esc(d.judul||'—')}</td><td>${esc(d.vendor||'—')}</td><td>${esc(d.noPO||'—')}</td><td>${esc(d.namaFile)}</td><td>${esc(d.pengunggah||'—')}</td><td><a class="btn btn-outline btn-small" href="${esc(d.link)}" target="_blank" rel="noopener">Lihat PDF ↗</a></td></tr>`).join('') : '<tr><td colspan="8" class="empty-cell">Belum ada dokumen Purchasing.</td></tr>';
@@ -465,10 +490,11 @@ async function handlePOUpload(e) {
   if (file.size > 8*1024*1024) { setText('poMessage','Ukuran PDF maksimal 8 MB.'); return; }
   setBusy('poSubmit',true,'Mengunggah…'); setText('poMessage','');
   try {
-    const result = await callAPI('uploadPurchaseOrder',{tanggal:$('poTanggal').value,noPO:$('poNomor').value.trim(),vendor:$('poVendor').value,proyek:$('poProyek').value.trim(),judul:$('poJudul').value.trim(),file:{name:file.name,base64:await fileToBase64(file)}});
-    $('poUploadForm').reset(); showToast(result.message); await loadPurchaseData();
+    const poProgress=$('poProgress'); if(poProgress){poProgress.hidden=false;poProgress.value=0;}
+    const result = await callAPI('uploadPurchaseOrder',{tanggal:$('poTanggal').value,noPO:$('poNomor').value.trim(),vendor:$('poVendor').value,proyek:$('poProyek').value.trim(),judul:$('poJudul').value.trim(),file:{name:file.name,base64:await fileToBase64(file)}},pct=>{if(poProgress)poProgress.value=pct;setText('poMessage','Mengirim file… '+pct+'%');});
+    $('poUploadForm').reset(); showToast(result.message); purchaseLoadedAt=0; await loadPurchaseData(true); await loadNotifications(); loadStorageStats();
   } catch(err) { setText('poMessage',err.message); }
-  finally { setBusy('poSubmit',false,'Upload PO'); }
+  finally { setBusy('poSubmit',false,'Upload PO'); if($('poProgress'))$('poProgress').hidden=true; }
 }
 async function handlePurchasingUpload(e) {
   e.preventDefault();
@@ -478,10 +504,11 @@ async function handlePurchasingUpload(e) {
   setBusy('purSubmit',true,'Mengunggah…');setText('purMessage','');
   try {
     const encoded=[]; for(const f of files) encoded.push({name:f.name,base64:await fileToBase64(f)});
-    const result=await callAPI('uploadPurchasingDocuments',{jenis:$('purJenis').value,tanggal:$('purTanggal').value,judul:$('purJudul').value.trim(),vendor:$('purVendor').value,noPO:$('purNoPO').value.trim(),files:encoded});
-    $('purchasingUploadForm').reset();showToast(result.message);await loadPurchaseData();
+    const purProgress=$('purProgress'); if(purProgress){purProgress.hidden=false;purProgress.value=0;}
+    const result=await callAPI('uploadPurchasingDocuments',{jenis:$('purJenis').value,tanggal:$('purTanggal').value,judul:$('purJudul').value.trim(),vendor:$('purVendor').value,noPO:$('purNoPO').value.trim(),files:encoded},pct=>{if(purProgress)purProgress.value=pct;setText('purMessage','Mengirim file… '+pct+'%');});
+    $('purchasingUploadForm').reset();showToast(result.message);purchaseLoadedAt=0;await loadPurchaseData(true);loadStorageStats();
   } catch(err){setText('purMessage',err.message);}
-  finally{setBusy('purSubmit',false,'Upload Dokumen');}
+  finally{setBusy('purSubmit',false,'Upload Dokumen');if($('purProgress'))$('purProgress').hidden=true;}
 }
 async function loadChatMessages() {
   try {
@@ -495,12 +522,44 @@ async function loadChatMessages() {
 async function handleSendChat(e) {
   e.preventDefault(); const input=$('chatInput'); const message=input.value.trim(); if(!message)return;
   setBusy('chatSend',true,'Mengirim…');
-  try { await callAPI('sendChatMessage',{message}); input.value=''; await loadChatMessages(); input.focus(); }
+  try { await callAPI('sendChatMessage',{message}); input.value=''; await loadChatMessages(); await loadNotifications(); input.focus(); }
   catch(err){showToast(err.message);}
   finally{setBusy('chatSend',false,'Kirim');}
 }
 function startChatPolling(){stopChatPolling();chatPollTimer=setInterval(()=>{if(!$('tab-chat')?.hidden)loadChatMessages();},6000);}
 function stopChatPolling(){if(chatPollTimer){clearInterval(chatPollTimer);chatPollTimer=null;}}
+
+async function loadStorageStats(){
+  try{const stats=await callAPI('getStorageStats');const bytes=Number(stats.usedBytes||0);if(allData.storage)allData.storage.usedBytes=bytes;setText('storageText',(stats.usedLabel||formatBytes(bytes))+' / kuota akun Drive');if($('storageBar'))$('storageBar').style.width=Math.min(100,bytes/(100*1024**3)*100)+'%';}
+  catch(err){console.warn('Info penyimpanan:',err.message);}
+}
+
+async function loadNotifications() {
+  try {
+    notificationState = await callAPI('getNotificationSummary');
+    const total = Number(notificationState.unread || 0);
+    const counts = {notificationBadge:total,poNavBadge:Number(notificationState.unreadPO||0),chatNavBadge:Number(notificationState.unreadCHAT||0)};
+    Object.keys(counts).forEach(id => { const el=$(id); if(!el)return; const n=counts[id]; el.hidden=n<1; el.textContent=n>99?'99+':String(n); });
+    const box=$('notificationItems'); if(!box)return;
+    const items=notificationState.items||[];
+    box.innerHTML=items.length?items.map(n=>`<button type="button" class="notification-item" data-notif-type="${esc(n.type)}"><b>${esc(n.title)}</b><span>${esc(n.message)}</span><small>${esc(n.sender)} · ${esc(n.waktu)}</small></button>`).join(''):'<p class="notification-empty">Tidak ada notifikasi baru.</p>';
+    box.querySelectorAll('[data-notif-type]').forEach(b=>b.addEventListener('click',async()=>{const type=b.dataset.notifType;setHidden('notificationPanel',true);await markNotificationsRead();switchTab(type==='CHAT'?'chat':'po');}));
+  } catch(err) { console.warn('Notifikasi:',err.message); }
+}
+async function markNotificationsRead(){try{await callAPI('markNotificationsRead');notificationState.unread=0;await loadNotifications();}catch(err){showToast(err.message);}}
+function startNotificationPolling(){stopNotificationPolling();loadNotifications();notificationTimer=setInterval(()=>{if(!document.hidden)loadNotifications();},20000);}
+function stopNotificationPolling(){if(notificationTimer){clearInterval(notificationTimer);notificationTimer=null;}}
+async function loadActivityLogs(){
+  if(currentUser?.role!=='admin')return;
+  try{
+    activityRowsCache=await callAPI('adminGetActivityLogs',{q:$('activitySearch')?.value||'',username:$('activityUser')?.value||'',limit:300});
+    renderActivityLogs();
+  }catch(err){if($('activityRows'))$('activityRows').innerHTML=`<tr><td colspan="5" class="empty-cell">${esc(err.message)}</td></tr>`;}
+}
+function renderActivityLogs(){
+  const rows=$('activityRows');if(!rows)return;
+  rows.innerHTML=activityRowsCache.length?activityRowsCache.map(r=>`<tr><td>${esc(r.waktu)}</td><td>${esc(r.username)}</td><td>${esc(r.nama)}</td><td><span class="tag">${esc(r.aksi)}</span></td><td>${esc(r.keterangan)}</td></tr>`).join(''):'<tr><td colspan="5" class="empty-cell">Belum ada aktivitas yang tercatat.</td></tr>';
+}
 
 function renderVendorMaster() {
   $('vendorCount').textContent = `${allData.vendors.length} vendor`;
