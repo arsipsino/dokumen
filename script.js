@@ -132,32 +132,43 @@ function switchTab(tabId) {
 }
 
 async function callAPI(action, payload = {}, onProgress = null) {
-  const body = new URLSearchParams();
-  body.append('action', action);
+  // Fetch API avoids the XHR + Apps Script redirect/CORS failure seen on uploads.
   const session = getSession();
-  if (action !== 'login' && action !== 'logout') { if (!session || !session.token) throw new Error('Sesi login berakhir. Silakan masuk kembali.'); body.append('token', session.token); }
-  if (action === 'logout' && session) body.append('token', session.token);
-  body.append('payload', JSON.stringify(payload));
+  const request = { action, payload: payload || {} };
+  if (action !== 'login' && action !== 'logout') {
+    if (!session || !session.token) throw new Error('Sesi login berakhir. Silakan masuk kembali.');
+    request.token = session.token;
+  } else if (action === 'logout' && session) {
+    request.token = session.token;
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 300000);
   let raw;
-  if (typeof onProgress === 'function') {
-    raw = await new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest(); xhr.open('POST', API_URL, true); xhr.timeout = 180000;
-      xhr.upload.onprogress = ev => { if (ev.lengthComputable) onProgress(Math.round(ev.loaded / ev.total * 100)); };
-      xhr.onload = () => { if (xhr.status >= 200 && xhr.status < 300) resolve(xhr.responseText); else reject(new Error('Web App mengembalikan HTTP ' + xhr.status)); };
-      xhr.onerror = () => reject(new Error('Koneksi terputus saat mengunggah. Periksa internet lalu coba kembali.'));
-      xhr.ontimeout = () => reject(new Error('Upload melewati batas waktu. Coba file lebih kecil atau koneksi lebih stabil.'));
-      xhr.send(body);
+  try {
+    const response = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(request),
+      redirect: 'follow',
+      cache: 'no-store',
+      signal: controller.signal
     });
-  } else {
-    let response;
-    try { response = await fetch(API_URL, { method: 'POST', body, redirect: 'follow', cache: 'no-store' }); }
-    catch (networkError) { throw new Error('Tidak dapat menjangkau Web App. Periksa koneksi internet dan deployment Apps Script. ' + networkError.message); }
     if (!response.ok) throw new Error('Web App mengembalikan HTTP ' + response.status);
     raw = await response.text();
+  } catch (networkError) {
+    if (networkError && networkError.name === 'AbortError') {
+      throw new Error('Permintaan melewati batas waktu 5 menit. Coba unggah satu PDF terlebih dahulu atau gunakan koneksi yang lebih stabil.');
+    }
+    if (networkError && /^Web App mengembalikan HTTP/.test(networkError.message || '')) throw networkError;
+    throw new Error('Tidak dapat menyelesaikan koneksi ke Google Apps Script. Periksa koneksi internet dan deployment Web App, lalu coba lagi. Detail: ' + (networkError.message || networkError));
+  } finally {
+    clearTimeout(timeoutId);
   }
+
   let result;
   try { result = JSON.parse(raw); }
-  catch (_) { throw new Error('Respons Web App bukan JSON. Pastikan URL mengarah ke deployment /exec dan akses Web App diizinkan.'); }
+  catch (_) { throw new Error('Respons Google Apps Script bukan JSON. Pastikan deployment Web App menggunakan versi terbaru dan URL berakhiran /exec.'); }
   if (!result || result.success !== true) throw new Error((result && result.message) || 'Permintaan ditolak oleh server.');
   return result.data;
 }
@@ -540,8 +551,11 @@ async function handlePOUpload(e) {
   if (file.size > 8*1024*1024) { setText('poMessage','Ukuran PDF maksimal 8 MB.'); return; }
   setBusy('poSubmit',true,'Mengunggah…'); setText('poMessage','');
   try {
-    const poProgress=$('poProgress'); if(poProgress){poProgress.hidden=false;poProgress.value=0;}
-    const result = await callAPI('uploadPurchaseOrder',{tanggal:$('poTanggal').value,noPO:$('poNomor').value.trim(),vendor:$('poVendor').value,proyek:$('poProyek').value.trim(),judul:$('poJudul').value.trim(),file:{name:file.name,base64:await fileToBase64(file)}},pct=>{if(poProgress)poProgress.value=pct;setText('poMessage','Mengirim file… '+pct+'%');});
+    const poProgress=$('poProgress'); if(poProgress){poProgress.hidden=false;poProgress.removeAttribute('value');}
+    setText('poMessage','Membaca PDF dan mengirim ke Google Drive. Mohon tunggu, jangan tutup halaman…');
+    const encodedFile = await fileToBase64(file);
+    setText('poMessage','File sudah siap. Menyimpan ke Google Drive dan Google Sheets…');
+    const result = await callAPI('uploadPurchaseOrder',{tanggal:$('poTanggal').value,noPO:$('poNomor').value.trim(),vendor:$('poVendor').value,proyek:$('poProyek').value.trim(),judul:$('poJudul').value.trim(),file:{name:file.name,base64:encodedFile}});
     $('poUploadForm').reset(); showToast(result.message); purchaseLoadedAt=0; await loadPurchaseData(true); await loadNotifications(); loadStorageStats();
   } catch(err) { setText('poMessage',err.message); }
   finally { setBusy('poSubmit',false,'Upload PO'); if($('poProgress'))$('poProgress').hidden=true; }
@@ -553,10 +567,26 @@ async function handlePurchasingUpload(e) {
   for(const f of files){if((f.type!=='application/pdf'&&!/\.pdf$/i.test(f.name))){setText('purMessage','Semua file harus PDF: '+f.name);return;}if(f.size>8*1024*1024){setText('purMessage','Ukuran setiap PDF maksimal 8 MB: '+f.name);return;}}
   setBusy('purSubmit',true,'Mengunggah…');setText('purMessage','');
   try {
-    const encoded=[]; for(const f of files) encoded.push({name:f.name,base64:await fileToBase64(f)});
-    const purProgress=$('purProgress'); if(purProgress){purProgress.hidden=false;purProgress.value=0;}
-    const result=await callAPI('uploadPurchasingDocuments',{jenis:$('purJenis').value,tanggal:$('purTanggal').value,judul:$('purJudul').value.trim(),vendor:$('purVendor').value,noPO:$('purNoPO').value.trim(),files:encoded},pct=>{if(purProgress)purProgress.value=pct;setText('purMessage','Mengirim file… '+pct+'%');});
-    $('purchasingUploadForm').reset();showToast(result.message);purchaseLoadedAt=0;await loadPurchaseData(true);loadStorageStats();
+    // Kirim satu PDF per permintaan secara berurutan agar payload tidak terlalu besar.
+    const purProgress=$('purProgress'); if(purProgress){purProgress.hidden=false;purProgress.removeAttribute('value');}
+    let savedCount = 0;
+    for (let i = 0; i < files.length; i++) {
+      const f = files[i];
+      setText('purMessage', `Menyiapkan ${i+1}/${files.length}: ${f.name}`);
+      const encodedFile = await fileToBase64(f);
+      setText('purMessage', `Mengunggah ${i+1}/${files.length}: ${f.name}. Mohon tunggu…`);
+      await callAPI('uploadPurchasingDocuments', {
+        jenis:$('purJenis').value,
+        tanggal:$('purTanggal').value,
+        judul:$('purJudul').value.trim(),
+        vendor:$('purVendor').value,
+        noPO:$('purNoPO').value.trim(),
+        files:[{name:f.name,base64:encodedFile}]
+      });
+      savedCount++;
+      setText('purMessage', `${savedCount}/${files.length} dokumen berhasil disimpan.`);
+    }
+    $('purchasingUploadForm').reset();showToast(savedCount + ' dokumen Purchasing berhasil diunggah.');purchaseLoadedAt=0;await loadPurchaseData(true);loadStorageStats();
   } catch(err){setText('purMessage',err.message);}
   finally{setBusy('purSubmit',false,'Upload Dokumen');if($('purProgress'))$('purProgress').hidden=true;}
 }
