@@ -196,7 +196,8 @@
             <label class="field-label">Lokasi / Proyek<input id="lokasi" placeholder="Nama proyek / lokasi"></label>
             <label class="field-label">No. Invoice *<input id="noInv" required placeholder="INV/001/2025"></label>
             <label class="field-label">No. PO<input id="noPO" placeholder="PO/001/2025"></label>
-            <label class="field-label">Volume (Liter)<input id="volume" type="number" min="0" placeholder="8000"></label>
+            <label class="field-label">Kuantitas<input id="volume" type="number" min="0" step="any" placeholder="Contoh: 8000" inputmode="decimal"></label>
+            <label class="field-label">Satuan Kuantitas<select id="satuan"><option value="Liter">Liter</option><option value="PCS">PCS</option><option value="Pack">Pack</option><option value="Set">Set</option></select></label>
             <label class="field-label">Total Invoice (Rp)<input id="total" type="number" min="0" placeholder="130000000"></label>
             <label class="field-label">Status Pembayaran<select id="statusBayar"><option>Belum Bayar</option><option>Sebagian</option><option>Lunas</option></select></label>
             <label class="field-label">Status Dokumen<select id="statusDok"><option>Lengkap</option><option>Kurang</option></select></label>
