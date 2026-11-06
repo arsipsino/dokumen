@@ -464,7 +464,7 @@ async function handleUploadTransaksi(e) {
     const payload = {
       id: editingId,
       tglInvoice: $('tglInvoice').value, vendor: $('vendor').value, lokasi: $('lokasi').value,
-      noInv: $('noInv').value.trim(), noPO: $('noPO').value.trim(), volume: $('volume').value,
+      noInv: $('noInv').value.trim(), noPO: $('noPO').value.trim(), volume: $('volume').value, satuan: $('satuan').value,
       total: $('total').value, statusBayar: $('statusBayar').value,
       statusDok: $('statusDok').value, catatan: $('catatan').value, files
     };
@@ -499,6 +499,7 @@ function editTransaction(id) {
   $('noInv').value = t.noInv || '';
   $('noPO').value = t.noPO || '';
   $('volume').value = t.volume || '';
+  $('satuan').value = t.satuan || 'Liter';
   $('total').value = t.total || '';
   $('statusBayar').value = t.statusBayar || 'Belum Bayar';
   $('statusDok').value = t.statusDok || 'Lengkap';
@@ -685,7 +686,7 @@ function statusBadge(status) {
 }
 function renderTransactions() {
   $('trxCount').textContent = `${allData.transaksi.length} transaksi`;
-  $('transactionRows').innerHTML = allData.transaksi.length ? allData.transaksi.map(t => `<tr><td>${esc(t.id)}</td><td>${esc(t.tglInvoice || '—')}</td><td>${esc(t.vendor)}</td><td>${esc(t.noPO || '—')}</td><td>${Number(t.volume || 0).toLocaleString('id-ID')} L</td><td>${formatRupiah(t.total)}</td><td>${statusBadge(t.statusBayar)}</td><td>${statusBadge(t.statusDok)}</td><td><div class="row-actions"><button type="button" class="btn btn-outline btn-small" data-edit-trx="${esc(t.id)}">Edit</button><button type="button" class="btn btn-danger btn-small" data-delete-trx="${esc(t.id)}">Hapus</button></div></td></tr>`).join('') : '<tr><td colspan="9" class="empty-cell">Belum ada transaksi.</td></tr>';
+  $('transactionRows').innerHTML = allData.transaksi.length ? allData.transaksi.map(t => `<tr><td>${esc(t.id)}</td><td>${esc(t.tglInvoice || '—')}</td><td>${esc(t.vendor)}</td><td>${esc(t.noPO || '—')}</td><td>${Number(t.volume || 0).toLocaleString('id-ID')} ${esc(t.satuan || 'Liter')}</td><td>${formatRupiah(t.total)}</td><td>${statusBadge(t.statusBayar)}</td><td>${statusBadge(t.statusDok)}</td><td><div class="row-actions"><button type="button" class="btn btn-outline btn-small" data-edit-trx="${esc(t.id)}">Edit</button><button type="button" class="btn btn-danger btn-small" data-delete-trx="${esc(t.id)}">Hapus</button></div></td></tr>`).join('') : '<tr><td colspan="9" class="empty-cell">Belum ada transaksi.</td></tr>';
   $('transactionRows').querySelectorAll('[data-edit-trx]').forEach(b=>b.addEventListener('click',()=>editTransaction(b.dataset.editTrx)));
   $('transactionRows').querySelectorAll('[data-delete-trx]').forEach(b=>b.addEventListener('click',()=>deleteTransaction(b.dataset.deleteTrx)));
 }
