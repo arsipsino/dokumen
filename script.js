@@ -6,6 +6,7 @@ const SESSION_KEY = "pt_sino_session";
 let currentUser = null;
 const $ = id => document.getElementById(id);
 const PAGE_SIZE = 15;
+const MAX_PDF_BYTES = 8 * 1024 * 1024; // 8 MiB
 let allData = { vendors: [], transaksi: [], arsip: [], counts: {}, izin: {}, storage: {} };
 let filteredDocs = [];
 let currentPage = 1;
@@ -101,6 +102,8 @@ function bindEvents() {
   on('createUserForm', 'submit', handleCreateUser);
   on('poUploadForm', 'submit', handlePOUpload);
   on('purchasingUploadForm', 'submit', handlePurchasingUpload);
+  on('poFile', 'change', () => validateUploadSelection('poFile', 'poMessage', false));
+  on('purFiles', 'change', () => validateUploadSelection('purFiles', 'purMessage', true));
   on('refreshPO', 'click', () => loadPurchaseData(true));
   on('poSearch', 'input', renderPurchaseTables);
   on('notificationButton','click',()=>{setHidden('notificationPanel',!$('notificationPanel').hidden);loadNotifications();});
@@ -391,6 +394,28 @@ function updateRemoveButtons() {
   const rows = [...document.querySelectorAll('.dokumen-row')];
   rows.forEach(r => r.querySelector('.remove-doc').disabled = rows.length === 1);
 }
+function validateUploadSelection(inputId, messageId, multiple) {
+  const input = $(inputId);
+  const files = input ? [...input.files] : [];
+  if (!files.length) { setText(messageId, ''); return true; }
+  for (const file of files) {
+    if (file.type !== 'application/pdf' && !/\.pdf$/i.test(file.name)) {
+      const message = `File harus PDF: ${file.name}`;
+      setText(messageId, message); showToast(message); return false;
+    }
+    if (file.size > MAX_PDF_BYTES) {
+      const size = formatBytes(file.size);
+      const message = `Upload dibatalkan: ${file.name} berukuran ${size}. Batas maksimal 8 MB per file. Silakan kompres PDF atau pilih file yang lebih kecil.`;
+      setText(messageId, message); showToast(message); return false;
+    }
+  }
+  const total = files.reduce((sum, file) => sum + file.size, 0);
+  setText(messageId, multiple && files.length > 1
+    ? `${files.length} file dipilih (${formatBytes(total)} total). Maksimal 8 MB untuk setiap file.`
+    : `${files[0].name} (${formatBytes(files[0].size)}) siap diunggah.`);
+  return true;
+}
+
 function fileToBase64(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -548,7 +573,7 @@ async function handlePOUpload(e) {
   const file = $('poFile').files[0];
   if (!file) { setText('poMessage','Pilih file PDF PO.'); return; }
   if (file.type !== 'application/pdf' && !/\.pdf$/i.test(file.name)) { setText('poMessage','File PO harus PDF.'); return; }
-  if (file.size > 8*1024*1024) { setText('poMessage','Ukuran PDF maksimal 8 MB.'); return; }
+  if (file.size > MAX_PDF_BYTES) { const msg = `Upload dibatalkan: ${file.name} berukuran ${formatBytes(file.size)}. Batas maksimal 8 MB. Kompres PDF atau pilih file yang lebih kecil.`; setText('poMessage',msg); showToast(msg); return; }
   setBusy('poSubmit',true,'Mengunggah…'); setText('poMessage','');
   try {
     const poProgress=$('poProgress'); if(poProgress){poProgress.hidden=false;poProgress.removeAttribute('value');}
@@ -564,7 +589,7 @@ async function handlePurchasingUpload(e) {
   e.preventDefault();
   const files=[...$('purFiles').files];
   if(!files.length){setText('purMessage','Pilih minimal satu file PDF.');return;}
-  for(const f of files){if((f.type!=='application/pdf'&&!/\.pdf$/i.test(f.name))){setText('purMessage','Semua file harus PDF: '+f.name);return;}if(f.size>8*1024*1024){setText('purMessage','Ukuran setiap PDF maksimal 8 MB: '+f.name);return;}}
+  for(const f of files){if((f.type!=='application/pdf'&&!/\.pdf$/i.test(f.name))){const msg='Semua file harus PDF: '+f.name;setText('purMessage',msg);showToast(msg);return;}if(f.size>MAX_PDF_BYTES){const msg=`Upload dibatalkan: ${f.name} berukuran ${formatBytes(f.size)}. Batas maksimal 8 MB per file. Kompres PDF atau pilih file yang lebih kecil.`;setText('purMessage',msg);showToast(msg);return;}}
   setBusy('purSubmit',true,'Mengunggah…');setText('purMessage','');
   try {
     // Kirim satu PDF per permintaan secara berurutan agar payload tidak terlalu besar.
