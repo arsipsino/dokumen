@@ -461,16 +461,25 @@ async function handleUploadTransaksi(e) {
         files.push({ jenis: row.querySelector('.doc-type').value, name: file.name, size: formatBytes(file.size), base64: await fileToBase64(file) });
       }
     }
+    const unitSelect = $('satuan');
+    const selectedUnit = unitSelect && unitSelect.selectedOptions && unitSelect.selectedOptions.length
+      ? unitSelect.selectedOptions[0].value
+      : (unitSelect ? unitSelect.value : '');
+    const allowedUnits = ['Liter', 'PCS', 'Pack', 'Set'];
+    if (!allowedUnits.includes(selectedUnit)) {
+      throw new Error('Pilih satuan kuantitas terlebih dahulu: Liter, PCS, Pack, atau Set.');
+    }
     const payload = {
       id: editingId,
       tglInvoice: $('tglInvoice').value, vendor: $('vendor').value, lokasi: $('lokasi').value,
-      noInv: $('noInv').value.trim(), noPO: $('noPO').value.trim(), volume: $('volume').value, satuan: $('satuan').value,
+      noInv: $('noInv').value.trim(), noPO: $('noPO').value.trim(), volume: $('volume').value,
+      satuan: selectedUnit, satuanKuantitas: selectedUnit, unit: selectedUnit,
       total: $('total').value, statusBayar: $('statusBayar').value,
       statusDok: $('statusDok').value, catatan: $('catatan').value, files
     };
     const result = await callAPI(editingId ? 'updateTransaksi' : 'saveTransaksiDanDokumen', payload);
     resetTransactionForm();
-    showToast(result.message);
+    showToast(result.message + (result.satuan ? ' Satuan tersimpan: ' + result.satuan + '.' : ''));
     await initApp();
     switchTab('transaksi');
   } catch (err) { $('formMessage').textContent = err.message; }
