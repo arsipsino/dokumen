@@ -270,7 +270,19 @@
       <section class="panel chat-panel">
         <div class="chat-toolbar"><div><b>Ruang Chat Umum</b><small>Pesan diperbarui otomatis setiap beberapa detik.</small></div><button class="btn btn-outline btn-small" id="refreshChat">↻ Perbarui</button></div>
         <div id="chatMessages" class="chat-messages" aria-live="polite"><div class="chat-empty">Memuat percakapan…</div></div>
-        <form id="chatForm" class="chat-compose"><textarea id="chatInput" rows="2" maxlength="2000" placeholder="Tulis pesan untuk semua pengguna…" required></textarea><button id="chatSend" class="btn btn-primary" type="submit">Kirim</button></form>
+        <form id="chatForm" class="chat-compose chat-compose-with-file">
+          <div class="chat-compose-main">
+            <textarea id="chatInput" rows="2" maxlength="2000" placeholder="Tulis pesan untuk semua pengguna…"></textarea>
+            <div class="chat-attachment-tools">
+              <label class="btn btn-outline btn-small chat-attach-button" for="chatAttachment"><span aria-hidden="true">＋</span> Lampirkan gambar/PDF</label>
+              <input id="chatAttachment" type="file" accept="image/jpeg,image/png,image/webp,image/gif,application/pdf,.jpg,.jpeg,.png,.webp,.gif,.pdf" hidden>
+              <span id="chatAttachmentName" class="chat-attachment-name">Belum ada lampiran</span>
+              <button id="chatAttachmentClear" class="btn btn-outline btn-small" type="button" hidden>Hapus file</button>
+            </div>
+            <small id="chatAttachmentMessage" class="chat-attachment-message" role="status">Gambar maksimal 5 MB · PDF maksimal 8 MB.</small>
+          </div>
+          <button id="chatSend" class="btn btn-primary" type="submit">Kirim</button>
+        </form>
         <small class="chat-note">Hindari mengirim password, data rahasia, atau informasi sensitif melalui chat.</small>
       </section>
     </section>
