@@ -112,6 +112,8 @@ function bindEvents() {
   on('applyActivityFilter','click',loadActivityLogs);
   on('refreshPurchasing', 'click', loadPurchaseData);
   on('chatForm', 'submit', handleSendChat);
+  on('chatAttachment', 'change', handleChatAttachmentSelect);
+  on('chatAttachmentClear', 'click', clearChatAttachment);
   on('refreshChat', 'click', loadChatMessages);
 }
 
@@ -630,15 +632,60 @@ async function loadChatMessages() {
     const messages=await callAPI('getChatMessages');
     const box=$('chatMessages'); if(!box)return;
     const wasNearBottom=box.scrollHeight-box.scrollTop-box.clientHeight<80;
-    box.innerHTML=messages.length?messages.map(m=>`<article class="chat-message ${m.username===currentUser?.username?'mine':''}"><div class="chat-message-meta"><b>${esc(m.nama)}</b><span>@${esc(m.username)} · ${esc(m.waktu)}</span></div><p>${esc(m.pesan).replace(/\n/g,'<br>')}</p></article>`).join(''):'<div class="chat-empty">Belum ada percakapan. Mulai obrolan bersama tim.</div>';
+    box.innerHTML=messages.length?messages.map(m=>{
+      const attachment = m.lampiran ? (String(m.lampiran.mime||'').startsWith('image/')
+        ? `<a class="chat-attachment-card chat-image-card" href="${esc(m.lampiran.url)}" target="_blank" rel="noopener"><img src="${esc(m.lampiran.previewUrl || m.lampiran.url)}" alt="${esc(m.lampiran.nama)}" loading="lazy"><span>▧ ${esc(m.lampiran.nama)} · ${esc(m.lampiran.ukuran)}</span></a>`
+        : `<a class="chat-attachment-card chat-pdf-card" href="${esc(m.lampiran.url)}" target="_blank" rel="noopener"><span class="chat-pdf-icon">PDF</span><span><b>${esc(m.lampiran.nama)}</b><small>${esc(m.lampiran.ukuran)} · Buka dokumen</small></span><span class="chat-file-open">↗</span></a>`
+      ) : '';
+      return `<article class="chat-message ${m.username===currentUser?.username?'mine':''}"><div class="chat-message-meta"><b>${esc(m.nama)}</b><span>@${esc(m.username)} · ${esc(m.waktu)}</span></div>${m.pesan?`<p>${esc(m.pesan).replace(/\n/g,'<br>')}</p>`:''}${attachment}</article>`;
+    }).join(''):'<div class="chat-empty">Belum ada percakapan. Mulai obrolan bersama tim.</div>';
     if(wasNearBottom)box.scrollTop=box.scrollHeight;
   } catch(err) { if($('chatMessages'))$('chatMessages').innerHTML=`<div class="chat-empty">${esc(err.message)}</div>`; }
 }
+const MAX_CHAT_IMAGE_BYTES = 5 * 1024 * 1024;
+const MAX_CHAT_PDF_BYTES = 8 * 1024 * 1024;
+function handleChatAttachmentSelect() {
+  const input = $('chatAttachment');
+  const file = input && input.files ? input.files[0] : null;
+  if (!file) { setText('chatAttachmentName','Belum ada lampiran'); setText('chatAttachmentMessage','Gambar maksimal 5 MB · PDF maksimal 8 MB.'); setHidden('chatAttachmentClear',true); return; }
+  const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
+  const isImage = ['image/jpeg','image/png','image/webp','image/gif'].includes(file.type) || /\.(jpe?g|png|webp|gif)$/i.test(file.name);
+  const max = isPdf ? MAX_CHAT_PDF_BYTES : MAX_CHAT_IMAGE_BYTES;
+  if ((!isPdf && !isImage) || file.size > max || file.size === 0) {
+    const message = !isPdf && !isImage
+      ? 'Format tidak didukung. Pilih PDF, JPG, PNG, WEBP, atau GIF.'
+      : `Ukuran ${file.name} (${formatBytes(file.size)}) melebihi batas ${isPdf?'8 MB':'5 MB'} atau file kosong.`;
+    input.value = ''; setText('chatAttachmentName','Belum ada lampiran'); setText('chatAttachmentMessage',message); setHidden('chatAttachmentClear',true); showToast(message); return;
+  }
+  setText('chatAttachmentName',`${file.name} (${formatBytes(file.size)})`);
+  setText('chatAttachmentMessage',isPdf?'PDF siap dikirim.':'Gambar siap dikirim.');
+  setHidden('chatAttachmentClear',false);
+}
+function clearChatAttachment() {
+  if ($('chatAttachment')) $('chatAttachment').value='';
+  setText('chatAttachmentName','Belum ada lampiran');
+  setText('chatAttachmentMessage','Gambar maksimal 5 MB · PDF maksimal 8 MB.');
+  setHidden('chatAttachmentClear',true);
+}
 async function handleSendChat(e) {
-  e.preventDefault(); const input=$('chatInput'); const message=input.value.trim(); if(!message)return;
+  e.preventDefault();
+  const input=$('chatInput');
+  const message=input.value.trim();
+  const file=$('chatAttachment')?.files?.[0] || null;
+  if(!message && !file){showToast('Tulis pesan atau pilih gambar/PDF terlebih dahulu.');return;}
+  if(file){
+    const isPdf=file.type==='application/pdf'||/\.pdf$/i.test(file.name);
+    const isImage=['image/jpeg','image/png','image/webp','image/gif'].includes(file.type)||/\.(jpe?g|png|webp|gif)$/i.test(file.name);
+    const max=isPdf?MAX_CHAT_PDF_BYTES:MAX_CHAT_IMAGE_BYTES;
+    if((!isPdf&&!isImage)||file.size>max){handleChatAttachmentSelect();return;}
+  }
   setBusy('chatSend',true,'Mengirim…');
-  try { await callAPI('sendChatMessage',{message}); input.value=''; await loadChatMessages(); await loadNotifications(); input.focus(); }
-  catch(err){showToast(err.message);}
+  try {
+    const payload={message};
+    if(file){setText('chatAttachmentMessage','Membaca lampiran dan mengirim ke Google Drive…');payload.file={name:file.name,mime:file.type,base64:await fileToBase64(file)};}
+    await callAPI('sendChatMessage',payload);
+    input.value=''; clearChatAttachment(); await loadChatMessages(); await loadNotifications(); input.focus();
+  } catch(err){showToast(err.message);setText('chatAttachmentMessage',err.message);}
   finally{setBusy('chatSend',false,'Kirim');}
 }
 function startChatPolling(){stopChatPolling();chatPollTimer=setInterval(()=>{if(!$('tab-chat')?.hidden)loadChatMessages();},6000);}
