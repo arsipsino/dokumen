@@ -196,8 +196,7 @@
             <label class="field-label">Lokasi / Proyek<input id="lokasi" placeholder="Nama proyek / lokasi"></label>
             <label class="field-label">No. Invoice *<input id="noInv" required placeholder="INV/001/2025"></label>
             <label class="field-label">No. PO<input id="noPO" placeholder="PO/001/2025"></label>
-            <label class="field-label">Kuantitas<input id="volume" type="number" min="0" step="any" placeholder="Contoh: 8000" inputmode="decimal"></label>
-            <label class="field-label">Satuan Kuantitas<select id="satuan"><option value="Liter">Liter</option><option value="PCS">PCS</option><option value="Pack">Pack</option><option value="Set">Set</option></select></label>
+            <label class="field-label">Volume (Liter)<input id="volume" type="number" min="0" placeholder="8000"></label>
             <label class="field-label">Total Invoice (Rp)<input id="total" type="number" min="0" placeholder="130000000"></label>
             <label class="field-label">Status Pembayaran<select id="statusBayar"><option>Belum Bayar</option><option>Sebagian</option><option>Lunas</option></select></label>
             <label class="field-label">Status Dokumen<select id="statusDok"><option>Lengkap</option><option>Kurang</option></select></label>
@@ -248,6 +247,22 @@
     <!-- PURCHASING DOCUMENTS -->
     <section id="tab-purchasing" class="tab-content" hidden>
       <div class="section-intro"><h2>Dokumen Purchasing</h2><p>Simpan surat penawaran harga, formulir permintaan barang, dan dokumen pembanding harga.</p></div>
+      <section class="panel form-panel request-form-panel">
+        <div class="request-panel-heading"><div><h2 class="panel-title">Formulir Permintaan Barang</h2><p>Isi permohonan pembelian barang dan simpan langsung sebagai PDF.</p></div><span class="request-chip">PDF otomatis</span></div>
+        <form id="purchaseRequestForm">
+          <div class="form-grid request-header-grid">
+            <label class="field-label span-2">Nama Perusahaan *<input id="requestCompany" required value="PT. Makmur Alam Raya Sentosa" placeholder="Ketik nama perusahaan"></label>
+            <label class="field-label">Nama Pemohon *<input id="requesterName" required placeholder="Nama pemohon"></label>
+            <label class="field-label">Jabatan *<input id="requesterPosition" required placeholder="Jabatan pemohon"></label>
+            <label class="field-label">Tanggal Pengajuan<input id="requestDate" type="date"></label>
+            <label class="field-label">Lokasi<input id="requestLocation" placeholder="Contoh: Jakarta"></label>
+            <label class="field-label">Diketahui Oleh<input id="approverName" placeholder="Nama pejabat yang mengetahui"></label>
+          </div>
+          <div class="request-items-heading"><h3>Daftar Barang</h3><button type="button" class="btn btn-outline btn-small" id="addRequestItem">＋ Tambah Baris</button></div>
+          <div id="requestItems" class="request-items-list"></div>
+          <div class="form-submit request-submit"><span id="requestMessage" class="form-message"></span><button type="submit" class="btn btn-primary" id="requestSaveButton">Buat &amp; Simpan PDF</button></div>
+        </form>
+      </section>
       <section class="panel form-panel"><h2 class="panel-title">Upload Dokumen Purchasing</h2>
         <form id="purchasingUploadForm" class="form-grid">
           <label class="field-label">Jenis Dokumen *<select id="purJenis" required><option>Surat Penawaran Harga</option><option>Formulir Permohonan Permintaan Barang</option><option>Dokumen Pembanding Harga</option></select></label>
@@ -270,19 +285,7 @@
       <section class="panel chat-panel">
         <div class="chat-toolbar"><div><b>Ruang Chat Umum</b><small>Pesan diperbarui otomatis setiap beberapa detik.</small></div><button class="btn btn-outline btn-small" id="refreshChat">↻ Perbarui</button></div>
         <div id="chatMessages" class="chat-messages" aria-live="polite"><div class="chat-empty">Memuat percakapan…</div></div>
-        <form id="chatForm" class="chat-compose chat-compose-with-file">
-          <div class="chat-compose-main">
-            <textarea id="chatInput" rows="2" maxlength="2000" placeholder="Tulis pesan untuk semua pengguna…"></textarea>
-            <div class="chat-attachment-tools">
-              <label class="btn btn-outline btn-small chat-attach-button" for="chatAttachment"><span aria-hidden="true">＋</span> Lampirkan gambar/PDF</label>
-              <input id="chatAttachment" type="file" accept="image/jpeg,image/png,image/webp,image/gif,application/pdf,.jpg,.jpeg,.png,.webp,.gif,.pdf" hidden>
-              <span id="chatAttachmentName" class="chat-attachment-name">Belum ada lampiran</span>
-              <button id="chatAttachmentClear" class="btn btn-outline btn-small" type="button" hidden>Hapus file</button>
-            </div>
-            <small id="chatAttachmentMessage" class="chat-attachment-message" role="status">Gambar maksimal 5 MB · PDF maksimal 8 MB.</small>
-          </div>
-          <button id="chatSend" class="btn btn-primary" type="submit">Kirim</button>
-        </form>
+        <form id="chatForm" class="chat-compose"><textarea id="chatInput" rows="2" maxlength="2000" placeholder="Tulis pesan untuk semua pengguna…" required></textarea><button id="chatSend" class="btn btn-primary" type="submit">Kirim</button></form>
         <small class="chat-note">Hindari mengirim password, data rahasia, atau informasi sensitif melalui chat.</small>
       </section>
     </section>
