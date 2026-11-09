@@ -217,7 +217,7 @@ function renderStats() {
   $('statTotalDok').textContent = c.total ?? allData.arsip.length;
   $('statLegal').textContent = c.legal ?? countCat('LEGALITAS PERUSAHAAN');
   $('statVendor').textContent = c.vendor ?? countCat('VENDOR');
-  $('statTrx').textContent = c.transaksi ?? countCat('TRANSAKSI BBM');
+  $('statTrx').textContent = c.transaksi ?? countCat('TRANSAKSI');
   $('statKeu').textContent = c.keuangan ?? countCat('KEUANGAN');
   $('statOps').textContent = c.operasional ?? countCat('OPERASIONAL');
   $('countAll').textContent = allData.arsip.length;
@@ -248,7 +248,7 @@ function categoryClick(e) {
   const sub = e.target.closest('[data-subcategory]');
   const cat = e.target.closest('[data-category]');
   if (sub) {
-    activeCategory = 'TRANSAKSI BBM';
+    activeCategory = 'TRANSAKSI';
     activeSubcategory = sub.dataset.subcategory;
   } else if (cat) {
     activeCategory = cat.dataset.category;
