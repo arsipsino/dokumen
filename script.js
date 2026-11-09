@@ -41,7 +41,24 @@ function restoreSession() {
   currentUser=session.user||null; setHidden('loginScreen',true); setHidden('appShell',false); updateProfile(); initApp();
 }
 function showLogin(message='') { setHidden('appShell',true); setHidden('loginScreen',false); setText('loginMessage',message); if($('loginPassword')) $('loginPassword').value=''; }
-function updateProfile(){const u=currentUser||{};setText('profileName',u.displayName||u.username||'Pengguna');setText('profileRole',u.role==='admin'?'Administrator':'Pengguna');setText('profileAvatar',String(u.displayName||u.username||'U').charAt(0).toUpperCase());setHidden('userAdminPanel',u.role!=='admin');setHidden('activityAdminPanel',u.role!=='admin');if(u.role==='admin'){loadUsers();loadActivityLogs();}startNotificationPolling();}
+function isAdminUser(){return String(currentUser?.role||'').trim().toLowerCase()==='admin';}
+function mountAccountPanels(){
+  const mount=$('accountManagementMount');
+  if(!mount)return;
+  ['userAdminPanel','activityAdminPanel'].forEach(id=>{const panel=$(id);if(panel&&panel.parentElement!==mount)mount.appendChild(panel);});
+}
+function updateProfile(){
+  const u=currentUser||{}, admin=isAdminUser();
+  setText('profileName',u.displayName||u.username||'Pengguna');
+  setText('profileRole',admin?'Administrator':'Pengguna');
+  setText('profileAvatar',String(u.displayName||u.username||'U').charAt(0).toUpperCase());
+  mountAccountPanels();
+  setHidden('accountNavItem',!admin);
+  setHidden('userAdminPanel',!admin);
+  setHidden('activityAdminPanel',!admin);
+  if(admin){loadUsers();loadActivityLogs();}
+  startNotificationPolling();
+}
 async function handleLogin(e){e.preventDefault();const b=$('loginButton');b.disabled=true;b.textContent='Memeriksa…';setText('loginMessage','');try{const data=await callAPI('login',{username:$('loginUsername').value.trim(),password:$('loginPassword').value});sessionStorage.setItem(SESSION_KEY,JSON.stringify(data));currentUser=data.user;setHidden('loginScreen',true);setHidden('appShell',false);updateProfile();await initApp();}catch(err){setText('loginMessage',err.message||'Login gagal.');}finally{b.disabled=false;b.textContent='Masuk ke Sistem';}}
 async function handleLogout(){stopNotificationPolling();stopChatPolling();try{await callAPI('logout');}catch(_){}sessionStorage.removeItem(SESSION_KEY);currentUser=null;showLogin('Anda telah keluar dari sistem.');}
 async function handleCreateUser(e){e.preventDefault();const b=$('createUserButton');b.disabled=true;b.textContent='Membuat…';setText('userAdminMessage','');try{const r=await callAPI('adminCreateUser',{username:$('newUsername').value,displayName:$('newDisplayName').value,password:$('newUserPassword').value,role:$('newUserRole').value});$('createUserForm').reset();setText('userAdminMessage',r.message);await loadUsers();}catch(err){setText('userAdminMessage',err.message);}finally{b.disabled=false;b.textContent='＋ Buat Akun';}}
@@ -125,10 +142,11 @@ function bindEvents() {
 
 function switchTab(tabId) {
   document.querySelectorAll('.tab-content').forEach(tab => tab.hidden = true);
+  if(tabId==='akun'&&!isAdminUser()){showToast('Menu Manajemen Akun hanya untuk administrator.');return;}
   const target = $('tab-' + tabId);
   if (target) target.hidden = false;
   document.querySelectorAll('.nav-item').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tabId));
-  const titles = { dashboard:'Dashboard', vendor:'Master Vendor', izin:'Izin Vendor / Dokumen Legalitas Vendor', transaksi:'Transaksi Pembelian', arsip:'Arsip Dokumen Digital', upload:'Upload Dokumen', po:'Arsip Purchase Order', purchasing:'Dokumen Purchasing', chat:'Chat Internal', laporan:'Rekap Laporan', pengaturan:'Pengaturan' };
+  const titles = { dashboard:'Dashboard', vendor:'Master Vendor', izin:'Izin Vendor / Dokumen Legalitas Vendor', transaksi:'Transaksi Pembelian', arsip:'Arsip Dokumen Digital', upload:'Upload Dokumen', po:'Arsip Purchase Order', purchasing:'Dokumen Purchasing', chat:'Chat Internal', laporan:'Rekap Laporan', pengaturan:'Pengaturan', akun:'Manajemen Akun' };
   $('pageTitle').textContent = titles[tabId] || 'Arsip Dokumen Digital';
   $('sidebar').classList.remove('open');
   if (tabId === 'izin') renderIzin();
@@ -137,7 +155,8 @@ function switchTab(tabId) {
   if (tabId === 'laporan') renderLaporanVendor();
   if (tabId === 'po' || tabId === 'purchasing') loadPurchaseData();
   if (tabId === 'chat') { loadChatMessages(); startChatPolling(); } else stopChatPolling();
-  if (tabId === 'pengaturan' && currentUser?.role === 'admin') loadActivityLogs();
+  if (tabId === 'pengaturan' && isAdminUser()) loadActivityLogs();
+  if (tabId === 'akun' && isAdminUser()) { loadUsers(); loadActivityLogs(); }
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
