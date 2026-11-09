@@ -73,7 +73,7 @@
         <article class="stat-card"><div class="stat-icon blue">▣</div><div><span>Total Dokumen</span><strong id="statTotalDok">0</strong><small id="statTotalNote">Seluruh arsip</small></div></article>
         <article class="stat-card"><div class="stat-icon green">▤</div><div><span>Dokumen Legalitas</span><strong id="statLegal">0</strong><small>Legalitas perusahaan</small></div></article>
         <article class="stat-card"><div class="stat-icon purple">♙</div><div><span>Dokumen Vendor</span><strong id="statVendor">0</strong><small>Arsip vendor</small></div></article>
-        <article class="stat-card"><div class="stat-icon orange">▧</div><div><span>Dokumen Transaksi</span><strong id="statTrx">0</strong><small>Transaksi BBM</small></div></article>
+        <article class="stat-card"><div class="stat-icon orange">▧</div><div><span>Dokumen Transaksi</span><strong id="statTrx">0</strong><small>Seluruh jenis transaksi</small></div></article>
         <article class="stat-card"><div class="stat-icon teal">▣</div><div><span>Dokumen Keuangan</span><strong id="statKeu">0</strong><small>Arsip keuangan</small></div></article>
         <article class="stat-card"><div class="stat-icon red">⚙</div><div><span>Dokumen Operasional</span><strong id="statOps">0</strong><small>Arsip operasional</small></div></article>
       </div>
@@ -98,7 +98,7 @@
               <button class="category-item selected" data-category=""><span>▣ Semua Dokumen</span><b id="countAll">0</b></button>
               <button class="category-item" data-category="LEGALITAS PERUSAHAAN"><span>▰ Legalitas Perusahaan</span><b id="countLegal">0</b></button>
               <button class="category-item" data-category="VENDOR"><span>▰ Vendor</span><b id="countVendor">0</b></button>
-              <div class="category-parent"><button class="category-item" data-category="TRANSAKSI BBM"><span>▰ Transaksi BBM</span><b id="countTrx">0</b></button>
+              <div class="category-parent"><button class="category-item" data-category="TRANSAKSI"><span>▰ Transaksi</span><b id="countTrx">0</b></button>
                 <div class="subcategory-list">
                   <button data-subcategory="PO">PO & Kontrak <b id="countPO">0</b></button>
                   <button data-subcategory="Invoice">Invoice <b id="countInvoice">0</b></button>
@@ -186,7 +186,7 @@
 
     <!-- TRANSAKSI / UPLOAD -->
     <section id="tab-transaksi" class="tab-content" hidden>
-      <div class="section-intro"><h2>Transaksi Pembelian</h2><p>Catat transaksi BBM dan lampirkan dokumen pendukung.</p></div>
+      <div class="section-intro"><h2>Transaksi Pembelian</h2><p>Catat transaksi pembelian dari berbagai vendor dan lampirkan dokumen pendukung.</p></div>
       <section class="panel form-panel">
         <h2 class="panel-title" id="transactionFormTitle">Tambah Transaksi & Upload Dokumen</h2>
         <input type="hidden" id="editTrxId" value="">
