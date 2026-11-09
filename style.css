@@ -39,5 +39,23 @@ html{font-size:16px;scroll-behavior:smooth}body{font-size:14px;line-height:1.5;c
 .btn-danger{background:#fff0f0;color:#b42318;border:1px solid #f2caca;cursor:pointer}.btn-danger:hover{background:#ffe2e2}.row-actions .btn{white-space:nowrap}
 
 
+/* Chat attachments */
+.chat-compose-with-file{align-items:flex-end}
+.chat-compose-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:7px}
+.chat-compose-main textarea{width:100%;box-sizing:border-box}
+.chat-attachment-tools{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+.chat-attach-button{cursor:pointer;display:inline-flex;align-items:center;gap:5px}
+.chat-attachment-name{font-size:11px;color:var(--muted);overflow-wrap:anywhere}
+.chat-attachment-message{font-size:10px;color:var(--muted)}
+.chat-attachment-card{display:flex;align-items:center;gap:10px;margin-top:9px;padding:8px;border:1px solid #dce6f4;border-radius:9px;background:#fff;color:#24518c;text-decoration:none;max-width:100%;box-sizing:border-box}
+.chat-image-card{display:flex;flex-direction:column;align-items:flex-start;width:min(100%,360px)}
+.chat-image-card img{display:block;max-width:100%;max-height:280px;object-fit:contain;border-radius:6px;background:#f2f5fa}
+.chat-image-card span{font-size:10px;overflow-wrap:anywhere}
+.chat-pdf-icon{display:grid;place-items:center;flex:0 0 40px;height:46px;border-radius:6px;background:#fff0f0;color:#c33;font-size:11px;font-weight:800}
+.chat-pdf-card>span:nth-child(2){min-width:0;display:flex;flex-direction:column;gap:3px;overflow-wrap:anywhere}
+.chat-pdf-card b{font-size:11px}.chat-pdf-card small{font-size:10px;color:var(--muted)}.chat-file-open{margin-left:auto}
+@media(max-width:600px){.chat-compose-with-file{align-items:stretch;flex-direction:column}.chat-compose-with-file>#chatSend{align-self:flex-end;min-width:90px}.chat-image-card{width:min(100%,260px)}}
+
+
 /* Formulir Permintaan Barang — PT SINO */
 .request-form-panel{margin-bottom:16px}.request-panel-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}.request-panel-heading .panel-title{padding:0 0 5px}.request-panel-heading p{margin:0 0 16px;color:var(--muted);font-size:11px}.request-chip{white-space:nowrap;background:#eaf2ff;color:#2458a8;border-radius:20px;padding:6px 10px;font-size:10px;font-weight:700}.request-header-grid{padding-bottom:16px;border-bottom:1px solid var(--line)}.request-items-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:16px 0 10px}.request-items-heading h3{font-size:13px;margin:0}.request-items-list{display:flex;flex-direction:column;gap:10px}.request-item-row{display:grid;grid-template-columns:1.5fr .55fr .6fr 1fr 1fr .8fr .8fr 1fr 1fr 1.1fr 1.2fr 34px;gap:8px;align-items:end;padding:12px;background:#f7f9fd;border:1px solid var(--line);border-radius:9px;min-width:0}.request-item-row .field-label{min-width:0;font-size:10px}.request-item-row input{width:100%;min-width:0;height:36px;border:1px solid #d6e0ee;border-radius:7px;padding:0 8px;font:11px Inter,Arial,sans-serif;color:var(--ink)}.request-row-remove{height:36px;min-width:34px;padding:0;font-size:18px}.request-submit{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap}.request-submit .form-message{flex:1 1 260px}.request-submit .btn{min-width:160px}@media(max-width:1050px){.request-item-row{grid-template-columns:repeat(4,minmax(0,1fr))}.request-row-remove{grid-column:4;justify-self:end;width:36px}.request-item-row .field-label:first-child{grid-column:span 2}}@media(max-width:600px){.request-header-grid{grid-template-columns:1fr}.request-header-grid .span-2{grid-column:span 1}.request-item-row{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.request-row-remove{grid-column:2;justify-self:end}.request-item-row .field-label:first-child{grid-column:span 2}.request-panel-heading{flex-direction:column}.request-submit{align-items:stretch}.request-submit .btn{width:100%}}
