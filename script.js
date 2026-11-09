@@ -6,6 +6,7 @@ const SESSION_KEY = "pt_sino_session";
 let currentUser = null;
 const $ = id => document.getElementById(id);
 const PAGE_SIZE = 15;
+const MAX_PDF_BYTES = 8 * 1024 * 1024; // 8 MiB
 let allData = { vendors: [], transaksi: [], arsip: [], counts: {}, izin: {}, storage: {} };
 let filteredDocs = [];
 let currentPage = 1;
@@ -106,6 +107,8 @@ function bindEvents() {
   on('purchaseRequestForm', 'submit', handlePurchaseRequestSave);
   on('addRequestItem', 'click', () => addPurchaseRequestRow());
   on('requestItems', 'click', e => { const b=e.target.closest('[data-remove-request-row]'); if(b){const rows=document.querySelectorAll('.request-item-row');if(rows.length>1)b.closest('.request-item-row').remove();else showToast('Minimal harus ada satu baris barang.');} });
+  on('poFile', 'change', () => validateUploadSelection('poFile', 'poMessage', false));
+  on('purFiles', 'change', () => validateUploadSelection('purFiles', 'purMessage', true));
   on('refreshPO', 'click', () => loadPurchaseData(true));
   on('poSearch', 'input', renderPurchaseTables);
   on('notificationButton','click',()=>{setHidden('notificationPanel',!$('notificationPanel').hidden);loadNotifications();});
@@ -114,6 +117,8 @@ function bindEvents() {
   on('applyActivityFilter','click',loadActivityLogs);
   on('refreshPurchasing', 'click', loadPurchaseData);
   on('chatForm', 'submit', handleSendChat);
+  on('chatAttachment', 'change', handleChatAttachmentSelect);
+  on('chatAttachmentClear', 'click', clearChatAttachment);
   on('refreshChat', 'click', loadChatMessages);
 }
 
@@ -396,6 +401,28 @@ function updateRemoveButtons() {
   const rows = [...document.querySelectorAll('.dokumen-row')];
   rows.forEach(r => r.querySelector('.remove-doc').disabled = rows.length === 1);
 }
+function validateUploadSelection(inputId, messageId, multiple) {
+  const input = $(inputId);
+  const files = input ? [...input.files] : [];
+  if (!files.length) { setText(messageId, ''); return true; }
+  for (const file of files) {
+    if (file.type !== 'application/pdf' && !/\.pdf$/i.test(file.name)) {
+      const message = `File harus PDF: ${file.name}`;
+      setText(messageId, message); showToast(message); return false;
+    }
+    if (file.size > MAX_PDF_BYTES) {
+      const size = formatBytes(file.size);
+      const message = `Upload dibatalkan: ${file.name} berukuran ${size}. Batas maksimal 8 MB per file. Silakan kompres PDF atau pilih file yang lebih kecil.`;
+      setText(messageId, message); showToast(message); return false;
+    }
+  }
+  const total = files.reduce((sum, file) => sum + file.size, 0);
+  setText(messageId, multiple && files.length > 1
+    ? `${files.length} file dipilih (${formatBytes(total)} total). Maksimal 8 MB untuk setiap file.`
+    : `${files[0].name} (${formatBytes(files[0].size)}) siap diunggah.`);
+  return true;
+}
+
 function fileToBase64(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -441,16 +468,25 @@ async function handleUploadTransaksi(e) {
         files.push({ jenis: row.querySelector('.doc-type').value, name: file.name, size: formatBytes(file.size), base64: await fileToBase64(file) });
       }
     }
+    const unitSelect = $('satuan');
+    const selectedUnit = unitSelect && unitSelect.selectedOptions && unitSelect.selectedOptions.length
+      ? unitSelect.selectedOptions[0].value
+      : (unitSelect ? unitSelect.value : '');
+    const allowedUnits = ['Liter', 'PCS', 'Pack', 'Set'];
+    if (!allowedUnits.includes(selectedUnit)) {
+      throw new Error('Pilih satuan kuantitas terlebih dahulu: Liter, PCS, Pack, atau Set.');
+    }
     const payload = {
       id: editingId,
       tglInvoice: $('tglInvoice').value, vendor: $('vendor').value, lokasi: $('lokasi').value,
       noInv: $('noInv').value.trim(), noPO: $('noPO').value.trim(), volume: $('volume').value,
+      satuan: selectedUnit, satuanKuantitas: selectedUnit, unit: selectedUnit,
       total: $('total').value, statusBayar: $('statusBayar').value,
       statusDok: $('statusDok').value, catatan: $('catatan').value, files
     };
     const result = await callAPI(editingId ? 'updateTransaksi' : 'saveTransaksiDanDokumen', payload);
     resetTransactionForm();
-    showToast(result.message);
+    showToast(result.message + (result.satuan ? ' Satuan tersimpan: ' + result.satuan + '.' : ''));
     await initApp();
     switchTab('transaksi');
   } catch (err) { $('formMessage').textContent = err.message; }
@@ -479,6 +515,7 @@ function editTransaction(id) {
   $('noInv').value = t.noInv || '';
   $('noPO').value = t.noPO || '';
   $('volume').value = t.volume || '';
+  $('satuan').value = t.satuan || 'Liter';
   $('total').value = t.total || '';
   $('statusBayar').value = t.statusBayar || 'Belum Bayar';
   $('statusDok').value = t.statusDok || 'Lengkap';
@@ -553,7 +590,7 @@ async function handlePOUpload(e) {
   const file = $('poFile').files[0];
   if (!file) { setText('poMessage','Pilih file PDF PO.'); return; }
   if (file.type !== 'application/pdf' && !/\.pdf$/i.test(file.name)) { setText('poMessage','File PO harus PDF.'); return; }
-  if (file.size > 8*1024*1024) { setText('poMessage','Ukuran PDF maksimal 8 MB.'); return; }
+  if (file.size > MAX_PDF_BYTES) { const msg = `Upload dibatalkan: ${file.name} berukuran ${formatBytes(file.size)}. Batas maksimal 8 MB. Kompres PDF atau pilih file yang lebih kecil.`; setText('poMessage',msg); showToast(msg); return; }
   setBusy('poSubmit',true,'Mengunggah…'); setText('poMessage','');
   try {
     const poProgress=$('poProgress'); if(poProgress){poProgress.hidden=false;poProgress.removeAttribute('value');}
@@ -589,11 +626,12 @@ async function handlePurchaseRequestSave(e) {
   finally{button.disabled=false;button.textContent='Buat & Simpan PDF';}
 }
 
+
 async function handlePurchasingUpload(e) {
   e.preventDefault();
   const files=[...$('purFiles').files];
   if(!files.length){setText('purMessage','Pilih minimal satu file PDF.');return;}
-  for(const f of files){if((f.type!=='application/pdf'&&!/\.pdf$/i.test(f.name))){setText('purMessage','Semua file harus PDF: '+f.name);return;}if(f.size>8*1024*1024){setText('purMessage','Ukuran setiap PDF maksimal 8 MB: '+f.name);return;}}
+  for(const f of files){if((f.type!=='application/pdf'&&!/\.pdf$/i.test(f.name))){const msg='Semua file harus PDF: '+f.name;setText('purMessage',msg);showToast(msg);return;}if(f.size>MAX_PDF_BYTES){const msg=`Upload dibatalkan: ${f.name} berukuran ${formatBytes(f.size)}. Batas maksimal 8 MB per file. Kompres PDF atau pilih file yang lebih kecil.`;setText('purMessage',msg);showToast(msg);return;}}
   setBusy('purSubmit',true,'Mengunggah…');setText('purMessage','');
   try {
     // Kirim satu PDF per permintaan secara berurutan agar payload tidak terlalu besar.
@@ -624,15 +662,60 @@ async function loadChatMessages() {
     const messages=await callAPI('getChatMessages');
     const box=$('chatMessages'); if(!box)return;
     const wasNearBottom=box.scrollHeight-box.scrollTop-box.clientHeight<80;
-    box.innerHTML=messages.length?messages.map(m=>`<article class="chat-message ${m.username===currentUser?.username?'mine':''}"><div class="chat-message-meta"><b>${esc(m.nama)}</b><span>@${esc(m.username)} · ${esc(m.waktu)}</span></div><p>${esc(m.pesan).replace(/\n/g,'<br>')}</p></article>`).join(''):'<div class="chat-empty">Belum ada percakapan. Mulai obrolan bersama tim.</div>';
+    box.innerHTML=messages.length?messages.map(m=>{
+      const attachment = m.lampiran ? (String(m.lampiran.mime||'').startsWith('image/')
+        ? `<a class="chat-attachment-card chat-image-card" href="${esc(m.lampiran.url)}" target="_blank" rel="noopener"><img src="${esc(m.lampiran.previewUrl || m.lampiran.url)}" alt="${esc(m.lampiran.nama)}" loading="lazy"><span>▧ ${esc(m.lampiran.nama)} · ${esc(m.lampiran.ukuran)}</span></a>`
+        : `<a class="chat-attachment-card chat-pdf-card" href="${esc(m.lampiran.url)}" target="_blank" rel="noopener"><span class="chat-pdf-icon">PDF</span><span><b>${esc(m.lampiran.nama)}</b><small>${esc(m.lampiran.ukuran)} · Buka dokumen</small></span><span class="chat-file-open">↗</span></a>`
+      ) : '';
+      return `<article class="chat-message ${m.username===currentUser?.username?'mine':''}"><div class="chat-message-meta"><b>${esc(m.nama)}</b><span>@${esc(m.username)} · ${esc(m.waktu)}</span></div>${m.pesan?`<p>${esc(m.pesan).replace(/\n/g,'<br>')}</p>`:''}${attachment}</article>`;
+    }).join(''):'<div class="chat-empty">Belum ada percakapan. Mulai obrolan bersama tim.</div>';
     if(wasNearBottom)box.scrollTop=box.scrollHeight;
   } catch(err) { if($('chatMessages'))$('chatMessages').innerHTML=`<div class="chat-empty">${esc(err.message)}</div>`; }
 }
+const MAX_CHAT_IMAGE_BYTES = 5 * 1024 * 1024;
+const MAX_CHAT_PDF_BYTES = 8 * 1024 * 1024;
+function handleChatAttachmentSelect() {
+  const input = $('chatAttachment');
+  const file = input && input.files ? input.files[0] : null;
+  if (!file) { setText('chatAttachmentName','Belum ada lampiran'); setText('chatAttachmentMessage','Gambar maksimal 5 MB · PDF maksimal 8 MB.'); setHidden('chatAttachmentClear',true); return; }
+  const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
+  const isImage = ['image/jpeg','image/png','image/webp','image/gif'].includes(file.type) || /\.(jpe?g|png|webp|gif)$/i.test(file.name);
+  const max = isPdf ? MAX_CHAT_PDF_BYTES : MAX_CHAT_IMAGE_BYTES;
+  if ((!isPdf && !isImage) || file.size > max || file.size === 0) {
+    const message = !isPdf && !isImage
+      ? 'Format tidak didukung. Pilih PDF, JPG, PNG, WEBP, atau GIF.'
+      : `Ukuran ${file.name} (${formatBytes(file.size)}) melebihi batas ${isPdf?'8 MB':'5 MB'} atau file kosong.`;
+    input.value = ''; setText('chatAttachmentName','Belum ada lampiran'); setText('chatAttachmentMessage',message); setHidden('chatAttachmentClear',true); showToast(message); return;
+  }
+  setText('chatAttachmentName',`${file.name} (${formatBytes(file.size)})`);
+  setText('chatAttachmentMessage',isPdf?'PDF siap dikirim.':'Gambar siap dikirim.');
+  setHidden('chatAttachmentClear',false);
+}
+function clearChatAttachment() {
+  if ($('chatAttachment')) $('chatAttachment').value='';
+  setText('chatAttachmentName','Belum ada lampiran');
+  setText('chatAttachmentMessage','Gambar maksimal 5 MB · PDF maksimal 8 MB.');
+  setHidden('chatAttachmentClear',true);
+}
 async function handleSendChat(e) {
-  e.preventDefault(); const input=$('chatInput'); const message=input.value.trim(); if(!message)return;
+  e.preventDefault();
+  const input=$('chatInput');
+  const message=input.value.trim();
+  const file=$('chatAttachment')?.files?.[0] || null;
+  if(!message && !file){showToast('Tulis pesan atau pilih gambar/PDF terlebih dahulu.');return;}
+  if(file){
+    const isPdf=file.type==='application/pdf'||/\.pdf$/i.test(file.name);
+    const isImage=['image/jpeg','image/png','image/webp','image/gif'].includes(file.type)||/\.(jpe?g|png|webp|gif)$/i.test(file.name);
+    const max=isPdf?MAX_CHAT_PDF_BYTES:MAX_CHAT_IMAGE_BYTES;
+    if((!isPdf&&!isImage)||file.size>max){handleChatAttachmentSelect();return;}
+  }
   setBusy('chatSend',true,'Mengirim…');
-  try { await callAPI('sendChatMessage',{message}); input.value=''; await loadChatMessages(); await loadNotifications(); input.focus(); }
-  catch(err){showToast(err.message);}
+  try {
+    const payload={message};
+    if(file){setText('chatAttachmentMessage','Membaca lampiran dan mengirim ke Google Drive…');payload.file={name:file.name,mime:file.type,base64:await fileToBase64(file)};}
+    await callAPI('sendChatMessage',payload);
+    input.value=''; clearChatAttachment(); await loadChatMessages(); await loadNotifications(); input.focus();
+  } catch(err){showToast(err.message);setText('chatAttachmentMessage',err.message);}
   finally{setBusy('chatSend',false,'Kirim');}
 }
 function startChatPolling(){stopChatPolling();chatPollTimer=setInterval(()=>{if(!$('tab-chat')?.hidden)loadChatMessages();},6000);}
@@ -689,7 +772,7 @@ function statusBadge(status) {
 }
 function renderTransactions() {
   $('trxCount').textContent = `${allData.transaksi.length} transaksi`;
-  $('transactionRows').innerHTML = allData.transaksi.length ? allData.transaksi.map(t => `<tr><td>${esc(t.id)}</td><td>${esc(t.tglInvoice || '—')}</td><td>${esc(t.vendor)}</td><td>${esc(t.noPO || '—')}</td><td>${Number(t.volume || 0).toLocaleString('id-ID')} L</td><td>${formatRupiah(t.total)}</td><td>${statusBadge(t.statusBayar)}</td><td>${statusBadge(t.statusDok)}</td><td><div class="row-actions"><button type="button" class="btn btn-outline btn-small" data-edit-trx="${esc(t.id)}">Edit</button><button type="button" class="btn btn-danger btn-small" data-delete-trx="${esc(t.id)}">Hapus</button></div></td></tr>`).join('') : '<tr><td colspan="9" class="empty-cell">Belum ada transaksi.</td></tr>';
+  $('transactionRows').innerHTML = allData.transaksi.length ? allData.transaksi.map(t => `<tr><td>${esc(t.id)}</td><td>${esc(t.tglInvoice || '—')}</td><td>${esc(t.vendor)}</td><td>${esc(t.noPO || '—')}</td><td>${Number(t.volume || 0).toLocaleString('id-ID')} ${esc(t.satuan || 'Liter')}</td><td>${formatRupiah(t.total)}</td><td>${statusBadge(t.statusBayar)}</td><td>${statusBadge(t.statusDok)}</td><td><div class="row-actions"><button type="button" class="btn btn-outline btn-small" data-edit-trx="${esc(t.id)}">Edit</button><button type="button" class="btn btn-danger btn-small" data-delete-trx="${esc(t.id)}">Hapus</button></div></td></tr>`).join('') : '<tr><td colspan="9" class="empty-cell">Belum ada transaksi.</td></tr>';
   $('transactionRows').querySelectorAll('[data-edit-trx]').forEach(b=>b.addEventListener('click',()=>editTransaction(b.dataset.editTrx)));
   $('transactionRows').querySelectorAll('[data-delete-trx]').forEach(b=>b.addEventListener('click',()=>deleteTransaction(b.dataset.deleteTrx)));
 }
