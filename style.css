@@ -68,19 +68,3 @@ html{font-size:16px;scroll-behavior:smooth}body{font-size:14px;line-height:1.5;c
 #tab-akun .user-create-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 #tab-akun .user-admin-panel .table-wrap{overflow-x:auto}
 @media(max-width:700px){#tab-akun .user-create-grid{grid-template-columns:1fr}#tab-akun .user-admin-panel,#tab-akun #activityAdminPanel{padding:14px}}
-
-
-/* FIX: sidebar menu dapat di-scroll agar item paling bawah tetap bisa diakses */
-.sidebar{overflow:hidden}
-.nav-menu{
-  flex:1 1 auto;
-  min-height:0;
-  overflow-y:auto;
-  overflow-x:hidden;
-  scrollbar-width:thin;
-  scrollbar-color:#5575a5 transparent;
-  padding-right:4px;
-}
-.nav-menu::-webkit-scrollbar{width:5px}
-.nav-menu::-webkit-scrollbar-thumb{background:#5575a5;border-radius:8px}
-.nav-menu::-webkit-scrollbar-track{background:transparent}
