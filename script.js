@@ -135,6 +135,17 @@ function bindEvents() {
   on('refreshActivity','click',loadActivityLogs);
   on('applyActivityFilter','click',loadActivityLogs);
   on('refreshPurchasing', 'click', loadPurchaseData);
+  on('purSearch', 'input', renderPurchaseTables);
+  on('purTypeFilter', 'change', renderPurchaseTables);
+  on('purRows', 'click', e => {
+    const edit=e.target.closest('[data-edit-purchasing]');
+    const del=e.target.closest('[data-delete-purchasing]');
+    if(edit) openPurchasingEdit(edit.dataset.editPurchasing);
+    if(del) deletePurchasingDoc(del.dataset.deletePurchasing);
+  });
+  on('purchasingEditForm', 'submit', savePurchasingEdit);
+  on('closePurchasingEdit', 'click', () => setHidden('purchasingEditModal', true));
+  on('purchasingEditModal', 'click', e => { if(e.target === $('purchasingEditModal')) setHidden('purchasingEditModal', true); });
   on('chatForm', 'submit', handleSendChat);
   on('chatAttachment', 'change', handleChatAttachmentSelect);
   on('chatAttachmentClear', 'click', clearChatAttachment);
@@ -600,12 +611,51 @@ function renderPurchaseTables() {
   const allPos = purchaseData.purchaseOrders || [];
   const q = String($('poSearch')?.value || '').trim().toLowerCase();
   const pos = allPos.filter(p => !q || [p.noPO,p.vendor,p.proyek,p.tanggal,p.namaFile,p.pengunggah,p.judul].join(' ').toLowerCase().includes(q));
-  const docs = purchaseData.purchasingDocs || [];
+  const allDocs = purchaseData.purchasingDocs || [];
+  const typeFilter = String($('purTypeFilter')?.value || '').trim();
+  const docs = allDocs.filter(d => {
+    const text = [d.tanggal,d.jenis,d.judul,d.vendor,d.noPO,d.namaFile,d.pengunggah,d.username].join(' ').toLowerCase();
+    return (!q || text.includes(q)) && (!typeFilter || d.jenis === typeFilter);
+  });
   setText('poCount', `${allPos.length} dokumen`); setText('poSearchCount', q ? `${pos.length} hasil ditemukan` : '');
-  setText('purCount', `${docs.length} dokumen`);
+  setText('purCount', q || typeFilter ? `${docs.length} dari ${allDocs.length} dokumen` : `${allDocs.length} dokumen`);
   if ($('poRows')) $('poRows').innerHTML = pos.length ? pos.map(p => `<tr><td>${esc(p.tanggal||'—')}</td><td><b>${esc(p.noPO)}</b></td><td>${esc(p.vendor||'—')}</td><td>${esc(p.proyek||'—')}</td><td>${esc(p.namaFile)}</td><td>${esc(p.pengunggah||'—')}</td><td><a class="btn btn-outline btn-small" href="${esc(p.link)}" target="_blank" rel="noopener">Lihat PDF ↗</a></td></tr>`).join('') : '<tr><td colspan="7" class="empty-cell">Belum ada Purchase Order.</td></tr>';
-  if ($('purRows')) $('purRows').innerHTML = docs.length ? docs.map(d => `<tr><td>${esc(d.tanggal||'—')}</td><td><span class="tag">${esc(d.jenis)}</span></td><td>${esc(d.judul||'—')}</td><td>${esc(d.vendor||'—')}</td><td>${esc(d.noPO||'—')}</td><td>${esc(d.namaFile)}</td><td>${esc(d.pengunggah||'—')}</td><td><a class="btn btn-outline btn-small" href="${esc(d.link)}" target="_blank" rel="noopener">Lihat PDF ↗</a></td></tr>`).join('') : '<tr><td colspan="8" class="empty-cell">Belum ada dokumen Purchasing.</td></tr>';
+  if ($('purRows')) $('purRows').innerHTML = docs.length ? docs.map(d => `<tr><td>${esc(d.tanggal||'—')}</td><td><span class="tag">${esc(d.jenis)}</span></td><td>${esc(d.judul||'—')}</td><td>${esc(d.vendor||'—')}</td><td>${esc(d.noPO||'—')}</td><td>${esc(d.namaFile)}</td><td>${esc(d.pengunggah||'—')}</td><td class="purchase-actions"><a class="btn btn-outline btn-small" href="${esc(d.link)}" target="_blank" rel="noopener">Lihat PDF</a>${isAdminUser() ? `<button class="btn btn-outline btn-small" data-edit-purchasing="${esc(d.id)}">Edit</button><button class="btn btn-danger btn-small" data-delete-purchasing="${esc(d.id)}">Hapus</button>` : ''}</td></tr>`).join('') : '<tr><td colspan="8" class="empty-cell">Tidak ada dokumen yang sesuai dengan pencarian atau filter.</td></tr>';
 }
+function openPurchasingEdit(id) {
+  const doc=(purchaseData.purchasingDocs||[]).find(x=>x.id===id);
+  if(!doc)return;
+  $('editPurId').value=doc.id;
+  $('editPurTanggal').value=doc.tanggal||'';
+  $('editPurJenis').value=doc.jenis||'Surat Penawaran Harga';
+  $('editPurJudul').value=doc.judul||'';
+  $('editPurVendor').value=doc.vendor==='-'?'':(doc.vendor||'');
+  $('editPurNoPO').value=doc.noPO||'';
+  $('editPurFileName').textContent=doc.namaFile||'';
+  setHidden('purchasingEditModal',false);
+}
+async function savePurchasingEdit(e) {
+  e.preventDefault();
+  const payload={id:$('editPurId').value,tanggal:$('editPurTanggal').value,jenis:$('editPurJenis').value,judul:$('editPurJudul').value.trim(),vendor:$('editPurVendor').value.trim(),noPO:$('editPurNoPO').value.trim()};
+  try {
+    $('savePurEdit').disabled=true;
+    const result=await callAPI('adminUpdatePurchasingDoc',payload);
+    showToast(result.message||'Dokumen diperbarui.');
+    setHidden('purchasingEditModal',true);purchaseLoadedAt=0;await loadPurchaseData(true);
+  } catch(err){showToast('Gagal memperbarui: '+err.message);}
+  finally{$('savePurEdit').disabled=false;}
+}
+async function deletePurchasingDoc(id) {
+  const doc=(purchaseData.purchasingDocs||[]).find(x=>x.id===id);
+  if(!doc)return;
+  if(!window.confirm(`Hapus dokumen "${doc.judul||doc.namaFile}"? File PDF akan dipindahkan ke Trash Google Drive, bukan dihapus permanen.`))return;
+  try {
+    const result=await callAPI('adminDeletePurchasingDoc',{id});
+    showToast(result.message||'Dokumen dihapus.');
+    purchaseLoadedAt=0;await loadPurchaseData(true);loadStorageStats();
+  } catch(err){showToast('Gagal menghapus: '+err.message);}
+}
+
 async function handlePOUpload(e) {
   e.preventDefault();
   const file = $('poFile').files[0];
