@@ -68,3 +68,10 @@ html{font-size:16px;scroll-behavior:smooth}body{font-size:14px;line-height:1.5;c
 #tab-akun .user-create-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 #tab-akun .user-admin-panel .table-wrap{overflow-x:auto}
 @media(max-width:700px){#tab-akun .user-create-grid{grid-template-columns:1fr}#tab-akun .user-admin-panel,#tab-akun #activityAdminPanel{padding:14px}}
+
+/* Automatic tax calculation in Purchase Request form */
+.request-tax-field{display:flex;flex-direction:column;gap:5px}
+.request-tax-select{width:100%;min-width:0;height:28px;border:1px solid var(--line);border-radius:6px;padding:0 5px;background:#fff;color:var(--ink);font:10px Inter,Arial,sans-serif}
+.request-tax-field input[readonly],.request-item-row input[readonly]{background:#edf2fa;color:#24456f;font-weight:600}
+.request-items-heading + .request-items-list{margin-top:8px}
+.request-tax-note{font-size:11px;color:var(--muted);margin:8px 0 0}
