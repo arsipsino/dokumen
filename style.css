@@ -75,3 +75,11 @@ html{font-size:16px;scroll-behavior:smooth}body{font-size:14px;line-height:1.5;c
 .request-tax-field input[readonly],.request-item-row input[readonly]{background:#edf2fa;color:#24456f;font-weight:600}
 .request-items-heading + .request-items-list{margin-top:8px}
 .request-tax-note{font-size:11px;color:var(--muted);margin:8px 0 0}
+
+/* Purchasing document management */
+.purchase-list-tools{display:grid;grid-template-columns:minmax(220px,1fr) minmax(190px,260px);gap:10px;padding:12px 0}
+.purchase-list-tools input,.purchase-list-tools select{width:100%;min-width:0;padding:10px 12px;border:1px solid var(--border,#d7e1f0);border-radius:8px;background:#fff;color:inherit;font:inherit}
+.purchase-list-note{font-size:12px;color:var(--muted,#71829b);padding:0 0 10px}
+.purchase-actions{white-space:nowrap;display:flex;gap:5px;align-items:center}
+.purchase-actions .btn{padding:6px 9px}
+@media(max-width:700px){.purchase-list-tools{grid-template-columns:1fr}.purchase-actions{flex-wrap:wrap}}
