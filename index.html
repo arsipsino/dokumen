@@ -277,6 +277,8 @@
         </form>
       </section>
       <section class="panel"><div class="table-heading"><div><h2>Daftar Dokumen Purchasing</h2><small id="purCount">0 dokumen</small></div><button class="btn btn-outline btn-small" id="refreshPurchasing">↻ Perbarui</button></div>
+        <div class="purchase-list-tools"><input id="purSearch" type="search" placeholder="Cari judul, jenis, vendor, nomor PO, file, pengunggah…"><select id="purTypeFilter"><option value="">Semua Jenis Dokumen</option><option>Surat Penawaran Harga</option><option>Formulir Permohonan Permintaan Barang</option><option>Dokumen Pembanding Harga</option></select></div>
+        <div class="purchase-list-note">Daftar gabungan: Surat Penawaran Harga, Formulir Permintaan Barang, dan Dokumen Pembanding Harga. Semua jenis tampil bersamaan kecuali jika difilter.</div>
         <div class="table-wrap"><table class="documents-table"><thead><tr><th>Tanggal</th><th>Jenis</th><th>Judul</th><th>Vendor</th><th>No. PO</th><th>File</th><th>Pengunggah</th><th>Aksi</th></tr></thead><tbody id="purRows"></tbody></table></div>
       </section>
     </section>
@@ -342,6 +344,7 @@
     <footer class="app-footer">Arsip Dokumen Digital · PT SINO <span>Terintegrasi dengan Google Sheets & Google Drive</span></footer>
   </main>
 </div>
+<div class="modal-backdrop" id="purchasingEditModal" hidden><div class="modal"><div class="modal-head"><h3>Edit Dokumen Purchasing</h3><button type="button" id="closePurchasingEdit">×</button></div><form id="purchasingEditForm" class="modal-body form-grid"><input id="editPurId" type="hidden"><label class="field-label">Tanggal Dokumen *<input id="editPurTanggal" type="date" required></label><label class="field-label">Jenis Dokumen *<select id="editPurJenis" required><option>Surat Penawaran Harga</option><option>Formulir Permohonan Permintaan Barang</option><option>Dokumen Pembanding Harga</option></select></label><label class="field-label span-2">Judul / Keterangan *<input id="editPurJudul" required></label><label class="field-label">Vendor<input id="editPurVendor"></label><label class="field-label">Nomor PO terkait<input id="editPurNoPO"></label><div class="span-2"><small>File saat ini: <b id="editPurFileName"></b></small><p class="form-message">Pengeditan ini memperbarui informasi dokumen, bukan mengganti PDF.</p></div><div class="form-submit span-2"><button type="submit" class="btn btn-primary" id="savePurEdit">Simpan Perubahan</button></div></form></div></div>
 <div class="toast" id="toast" role="status"></div>
 <div class="modal-backdrop" id="historyModal" hidden><div class="modal"><div class="modal-head"><h3>Riwayat Versi Dokumen</h3><button id="closeHistory">×</button></div><div class="modal-body" id="historyContent">Riwayat versi belum tersedia dari struktur database saat ini.</div></div></div>
 <script src="script.js"></script>
