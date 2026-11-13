@@ -124,6 +124,8 @@ function bindEvents() {
   on('purchaseRequestForm', 'submit', handlePurchaseRequestSave);
   on('addRequestItem', 'click', () => addPurchaseRequestRow());
   on('requestItems', 'click', e => { const b=e.target.closest('[data-remove-request-row]'); if(b){const rows=document.querySelectorAll('.request-item-row');if(rows.length>1)b.closest('.request-item-row').remove();else showToast('Minimal harus ada satu baris barang.');} });
+  on('requestItems', 'input', e => { if(e.target.matches('[data-request-field="qty"], [data-request-field="price"]')) calculatePurchaseRequestRow(e.target.closest('.request-item-row')); });
+  on('requestItems', 'change', e => { if(e.target.matches('[data-request-tax]')) calculatePurchaseRequestRow(e.target.closest('.request-item-row')); });
   on('poFile', 'change', () => validateUploadSelection('poFile', 'poMessage', false));
   on('purFiles', 'change', () => validateUploadSelection('purFiles', 'purMessage', true));
   on('refreshPO', 'click', () => loadPurchaseData(true));
@@ -621,17 +623,69 @@ async function handlePOUpload(e) {
   } catch(err) { setText('poMessage',err.message); }
   finally { setBusy('poSubmit',false,'Upload PO'); if($('poProgress'))$('poProgress').hidden=true; }
 }
+function parseRequestNumber(value) {
+  let raw=String(value==null?'':value).trim().replace(/[^0-9,.-]/g,'');
+  if(!raw)return 0;
+  if(raw.includes(',')) raw=raw.replace(/\\./g,'').replace(',','.');
+  else raw=raw.replace(/\\./g,'');
+  const n=Number(raw);
+  return Number.isFinite(n)?n:0;
+}
+function formatRequestCurrency(value) {
+  return 'Rp '+Math.round(Number(value)||0).toLocaleString('id-ID');
+}
+function calculatePurchaseRequestRow(row) {
+  if(!row)return;
+  const get=key=>row.querySelector('[data-request-field="'+key+'"]');
+  const qty=Number(get('qty')?.value)||0;
+  const price=Number(get('price')?.value)||0;
+  const nominal=Math.round(qty*price);
+  const pphEnabled=row.querySelector('[data-request-tax="pph"]')?.value==='yes';
+  const ppnEnabled=row.querySelector('[data-request-tax="ppn"]')?.value==='yes';
+  const pph=pphEnabled?Math.round(nominal*0.02):0;
+  const ppn=ppnEnabled?Math.round(nominal*0.11):0;
+  const total=nominal-pph+ppn;
+  [['nominal',nominal],['pph',pph],['ppn',ppn],['total',total]].forEach(([key,value])=>{
+    const el=get(key); if(el)el.value=formatRequestCurrency(value);
+  });
+}
 function addPurchaseRequestRow(data={}) {
   const host=$('requestItems'); if(!host)return;
   const row=document.createElement('div'); row.className='request-item-row';
-  const fields=[['name','Nama barang','text',data.name||''],['qty','Qty','text',data.qty||''],['unit','Satuan','text',data.unit||''],['price','Harga satuan','text',data.price||''],['nominal','Nominal','text',data.nominal||''],['pph','PPH','text',data.pph||''],['ppn','PPN','text',data.ppn||''],['total','Jumlah','text',data.total||''],['stock','Sisa stok sebelumnya','text',data.stock||''],['vendor','Nama vendor','text',data.vendor||''],['note','Keterangan','text',data.note||'']];
-  row.innerHTML=fields.map(([key,label,type,value])=>`<label class="field-label">${label}<input data-request-field="${key}" type="${type}" value="${esc(value)}" placeholder="${label}"></label>`).join('')+`<button type="button" class="btn btn-danger request-row-remove" data-remove-request-row aria-label="Hapus baris">×</button>`;
+  const fields=[
+    ['name','Nama barang','text',data.name||''],
+    ['qty','Qty','number',data.qty||''],
+    ['unit','Satuan','text',data.unit||''],
+    ['price','Harga satuan','number',data.price||''],
+    ['nominal','Nominal','text',data.nominal||'Rp 0'],
+    ['pph','PPH 2%','text',data.pph||'Rp 0'],
+    ['ppn','PPN 11%','text',data.ppn||'Rp 0'],
+    ['total','Jumlah','text',data.total||'Rp 0'],
+    ['stock','Sisa stok sebelumnya','text',data.stock||''],
+    ['vendor','Nama vendor','text',data.vendor||''],
+    ['note','Keterangan','text',data.note||'']
+  ];
+  row.innerHTML=fields.map(([key,label,type,value])=>{
+    const readonly=['nominal','pph','ppn','total'].includes(key);
+    const numeric=['qty','price'].includes(key);
+    if(key==='pph'||key==='ppn'){
+      const rate=key==='pph'?'2%':'11%';
+      const taxName=key==='pph'?'PPh 23':'PPN';
+      const enabled=data[key+'Enabled']===true||data[key+'Enabled']==='yes';
+      return `<label class="field-label request-tax-field">${taxName} (${rate})<select class="request-tax-select" data-request-tax="${key}"><option value="no">Tidak ada</option><option value="yes">Ada · ${rate}</option></select><input data-request-field="${key}" type="text" value="${esc(value)}" readonly aria-readonly="true"></label>`;
+    }
+    return `<label class="field-label">${label}<input data-request-field="${key}" type="${type}" value="${esc(value)}" placeholder="${label}" ${numeric?'min="0" step="any"':''} ${readonly?'readonly aria-readonly="true"':''}></label>`;
+  }).join('')+
+  `<button type="button" class="btn btn-danger request-row-remove" data-remove-request-row aria-label="Hapus baris">×</button>`;
   host.appendChild(row);
+  if(data.pphEnabled===true||data.pphEnabled==='yes')row.querySelector('[data-request-tax="pph"]').value='yes';
+  if(data.ppnEnabled===true||data.ppnEnabled==='yes')row.querySelector('[data-request-tax="ppn"]').value='yes';
+  calculatePurchaseRequestRow(row);
 }
 async function handlePurchaseRequestSave(e) {
   e.preventDefault();
   const rows=[...document.querySelectorAll('.request-item-row')];
-  const items=rows.map(row=>{const item={};row.querySelectorAll('[data-request-field]').forEach(input=>item[input.dataset.requestField]=input.value.trim());return item;});
+  const items=rows.map(row=>{calculatePurchaseRequestRow(row);const item={};row.querySelectorAll('[data-request-field]').forEach(input=>item[input.dataset.requestField]=input.value.trim());item.pphEnabled=row.querySelector('[data-request-tax="pph"]')?.value==="yes";item.ppnEnabled=row.querySelector('[data-request-tax="ppn"]')?.value==="yes";return item;});
   const payload={company:$('requestCompany').value.trim(),requester:$('requesterName').value.trim(),position:$('requesterPosition').value.trim(),date:$('requestDate').value,location:$('requestLocation').value.trim(),approver:$('approverName').value.trim(),items};
   const button=$('requestSaveButton');button.disabled=true;button.textContent='Membuat PDF…';setText('requestMessage','Membuat formulir PDF dan menyimpan ke Google Drive…');
   try {
